@@ -18,6 +18,7 @@ import { signOut } from "next-auth/react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
 
 interface SidebarProps {
   user: any;
@@ -37,6 +38,16 @@ export function Sidebar({ user }: SidebarProps) {
     { name: "Live", href: "/live", icon: Video },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
+
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['unreadNotifications'],
+    queryFn: async () => {
+      const res = await fetch('/api/notifications/unread-count');
+      const data = await res.json();
+      return data.unreadCount || 0;
+    },
+    enabled: !!user,
+  });
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sticky top-20">
@@ -64,8 +75,15 @@ export function Sidebar({ user }: SidebarProps) {
                   : "hover:bg-gray-100 dark:hover:bg-gray-700",
               )}
             >
-              <item.icon className="h-5 w-5" />
-              <span>{item.name}</span>
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                <item.icon className="h-5 w-5 shrink-0" />
+                <span className="truncate">{item.name}</span>
+              </div>
+              {item.name === "Notifications" && unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full shrink-0">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Link>
           );
         })}

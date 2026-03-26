@@ -35,3 +35,17 @@ export interface Comment {
   likes_count: number;
   created_at: string;
 }
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  actor: {
+    id: string;
+    username: string;
+    avatar_url: string;
+  };
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'system' | string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+}

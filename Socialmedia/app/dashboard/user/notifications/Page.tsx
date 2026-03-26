@@ -19,10 +19,11 @@ import { Button } from "@/components/ui/Button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { pusherClient } from "@/lib/pusher";
 import { toast } from "react-hot-toast";
+import { useSession } from "next-auth/react";
 
 interface Notification {
   id: string;
-  type: "like" | "comment" | "follow" | "mention" | "share" | "reaction";
+  type: "like" | "comment" | "follow" | "mention" | "share" | "reaction" | "system";
   actor: {
     id: string;
     username: string;
@@ -42,42 +43,58 @@ interface Notification {
   created_at: string;
 }
 
+import { useQueryClient } from "@tanstack/react-query";
+
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+
   useEffect(() => {
     fetchNotifications();
 
-    // Subscribe to Pusher for real-time notifications
-    const channel = pusherClient.subscribe("notifications");
+    if (!session?.user?.id) return;
 
-    channel.bind("new-notification", (data: Notification) => {
+    // Subscribe to Pusher for real-time notifications
+    const userChannel = pusherClient.subscribe(`user-notifications-${session.user.id}`);
+
+    const handleNewNotification = (data: Notification) => {
+      // Don't add to feed if it's our own public action
+      if (data.type === 'system' && data.actor.id === session.user.id) return;
+
       setNotifications((prev) => [data, ...prev]);
       setUnreadCount((prev) => prev + 1);
-      toast.custom((t) => (
-        <NotificationToast
-          notification={data}
-          onClose={() => toast.dismiss(t.id)}
-        />
-      ));
-    });
+    };
+
+    userChannel.bind("new-notification", handleNewNotification);
 
     return () => {
-      channel.unsubscribe();
+      userChannel.unbind("new-notification", handleNewNotification);
+      publicChannel.unbind("new-notification", handleNewNotification);
+      userChannel.unsubscribe();
+      publicChannel.unsubscribe();
     };
-  }, []);
+  }, [session?.user?.id]);
 
   const fetchNotifications = async () => {
     try {
       const response = await fetch("/api/notifications");
       const data = await response.json();
-      setNotifications(data.notifications);
-      setUnreadCount(data.unreadCount);
+      if (response.ok) {
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+        queryClient.setQueryData(['unreadNotifications'], data.unreadCount || 0);
+      } else {
+        console.error("Failed to fetch notifications:", data.error);
+        setNotifications([]);
+      }
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
+      setNotifications([]);
     } finally {
       setLoading(false);
     }
@@ -85,26 +102,38 @@ export default function NotificationsPage() {
 
   const markAsRead = async (notificationId?: string) => {
     try {
-      await fetch("/api/notifications", {
+      const isSoft = notificationId === "all-soft";
+      const payloadId = isSoft ? undefined : notificationId;
+
+      const response = await fetch("/api/notifications", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          notificationId
-            ? { notificationIds: [notificationId] }
-            : { markAll: true },
+          payloadId
+            ? { action: "markAsRead", notificationId: payloadId }
+            : { action: "markAllAsRead" },
         ),
       });
 
-      if (notificationId) {
+      if (!response.ok) throw new Error("Failed to mark as read");
+
+      if (payloadId) {
         setNotifications((prev) =>
           prev.map((n) =>
-            n.id === notificationId ? { ...n, is_read: true } : n,
+            n.id === payloadId ? { ...n, is_read: true } : n,
           ),
         );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+        setUnreadCount((prev) => {
+          const newCount = Math.max(0, prev - 1);
+          queryClient.setQueryData(['unreadNotifications'], newCount);
+          return newCount;
+        });
       } else {
-        setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+        if (!isSoft) {
+          setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+        }
         setUnreadCount(0);
+        queryClient.setQueryData(['unreadNotifications'], 0);
       }
     } catch (error) {
       console.error("Failed to mark notifications as read:", error);
@@ -182,7 +211,12 @@ export default function NotificationsPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+        <Tabs value={activeTab} onValueChange={(val) => {
+          setActiveTab(val);
+          if (val === "unread" && unreadCount > 0) {
+            markAsRead("all-soft");
+          }
+        }} className="mb-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="unread">
@@ -218,9 +252,13 @@ export default function NotificationsPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition ${
-                    !notification.is_read ? "border-l-4 border-primary" : ""
-                  }`}
+                  onClick={() => {
+                    if (!notification.is_read) {
+                      markAsRead(notification.id);
+                    }
+                  }}
+                  className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition cursor-pointer ${!notification.is_read ? "border-l-4 border-primary" : ""
+                    }`}
                 >
                   <div className="flex items-start space-x-3">
                     <Link href={`/profile/${notification.actor.username}`}>
@@ -271,7 +309,10 @@ export default function NotificationsPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsRead(notification.id);
+                        }}
                       >
                         <CheckCheck className="h-4 w-4" />
                       </Button>
@@ -287,39 +328,4 @@ export default function NotificationsPage() {
   );
 }
 
-// Notification Toast Component
-function NotificationToast({
-  notification,
-  onClose,
-}: {
-  notification: Notification;
-  onClose: () => void;
-}) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -50 }}
-      className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 max-w-sm pointer-events-auto"
-    >
-      <div className="flex items-start space-x-3">
-        <Avatar
-          src={notification.actor.avatar_url}
-          alt={notification.actor.username}
-          size="sm"
-        />
-        <div className="flex-1">
-          <p className="text-sm">
-            <span className="font-semibold">
-              {notification.actor.full_name || notification.actor.username}
-            </span>{" "}
-            {notification.content}
-          </p>
-          <button onClick={onClose} className="text-xs text-primary mt-2">
-            View
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
+

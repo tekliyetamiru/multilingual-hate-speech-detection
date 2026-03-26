@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
 import { pool } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { pusherServer } from '@/lib/pusher';
 
 export async function GET(
   req: NextRequest,
@@ -108,13 +109,56 @@ export async function POST(
       [params.postId]
     );
 
-    if (post.rows[0].user_id !== session.user.id) {
-      // Create notification
-      await pool.query(
+    const postOwnerId = post.rows[0]?.user_id;
+
+    // Get actor info
+    const actorRes2 = await pool.query(
+      'SELECT username, full_name, avatar_url FROM users WHERE id = $1',
+      [session.user.id]
+    );
+    const actor2 = actorRes2.rows[0] || {};
+    const actorPayload2 = {
+      id: session.user.id,
+      username: actor2.username || session.user.username,
+      full_name: actor2.full_name || session.user.name,
+      avatar_url: actor2.avatar_url || null,
+    };
+
+    if (postOwnerId && postOwnerId !== session.user.id) {
+      // Notify post owner
+      const notifRes = await pool.query(
         `INSERT INTO notifications (user_id, type, actor_id, post_id, comment_id, content)
-         VALUES ($1, 'comment', $2, $3, $4, $5)`,
-        [post.rows[0].user_id, session.user.id, params.postId, commentId, `${session.user.username} commented on your post`]
+         VALUES ($1, 'comment', $2, $3, $4, $5) RETURNING *`,
+        [postOwnerId, session.user.id, params.postId, commentId, `${actorPayload2.username} commented on your post`]
       );
+      if (pusherServer && notifRes.rows.length > 0) {
+        await pusherServer.trigger(`user-notifications-${postOwnerId}`, 'new-notification', {
+          ...notifRes.rows[0],
+          actor: actorPayload2,
+        });
+      }
+    }
+
+    // Notify all followers of the commenter: "Friend X commented on a post"
+    if (pusherServer) {
+      try {
+        const followersRes = await pool.query(
+          'SELECT follower_id FROM follows WHERE following_id = $1',
+          [session.user.id]
+        );
+        for (const row of followersRes.rows) {
+          if (row.follower_id === postOwnerId) continue;
+          await pusherServer.trigger(`user-notifications-${row.follower_id}`, 'new-notification', {
+            id: `friend-comment-${Date.now()}`,
+            type: 'comment',
+            content: `commented on a post`,
+            actor: actorPayload2,
+            post: { id: params.postId, content: '' },
+            is_read: false,
+            created_at: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      } catch (_) {}
     }
 
     return NextResponse.json(comment, { status: 201 });

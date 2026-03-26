@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
 import { pool } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
+import { pusherServer } from '@/lib/pusher';
 
 export async function GET(req: NextRequest) {
   try {
@@ -113,6 +114,42 @@ export async function POST(req: NextRequest) {
         `UPDATE hashtags SET posts_count = posts_count + 1 WHERE id = $1`,
         [hashtagResult.rows[0].id]
       );
+    }
+
+    if (pusherServer) {
+      const actorUser = userResult.rows[0];
+      const actorPayload = {
+        id: session.user.id,
+        username: actorUser?.username || session.user.username,
+        full_name: actorUser?.full_name || session.user.name,
+        avatar_url: actorUser?.avatar_url || null,
+      };
+
+      // Notify each follower directly
+      try {
+        const followersRes = await pool.query(
+          'SELECT follower_id FROM follows WHERE following_id = $1',
+          [session.user.id]
+        );
+        for (const row of followersRes.rows) {
+          // Store notification in database
+          const notifRes = await pool.query(
+            `INSERT INTO notifications (user_id, type, actor_id, post_id, content)
+             VALUES ($1, 'system', $2, $3, $4) RETURNING *`,
+            [row.follower_id, session.user.id, postId, 'just published a new post!']
+          );
+
+          if (notifRes.rows.length > 0) {
+            await pusherServer.trigger(`user-notifications-${row.follower_id}`, 'new-notification', {
+              ...notifRes.rows[0],
+              actor: actorPayload,
+              post: { id: postId, content: content?.slice(0, 80) },
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error('Failed to notify followers:', err);
+      }
     }
 
     return NextResponse.json(newPost, { status: 201 });

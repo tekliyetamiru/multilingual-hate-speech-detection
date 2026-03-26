@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
 import { pool } from '@/lib/db';
+import { pusherServer } from '@/lib/pusher';
 
 export async function POST(
   req: NextRequest,
@@ -53,13 +54,56 @@ export async function POST(
         [params.postId]
       );
 
-      if (post.rows[0].user_id !== session.user.id) {
-        // Create notification
-        await pool.query(
+      // Get actor info for notification payload
+      const actorRes = await pool.query(
+        'SELECT username, full_name, avatar_url FROM users WHERE id = $1',
+        [session.user.id]
+      );
+      const actor = actorRes.rows[0] || {};
+      const actorPayload = {
+        id: session.user.id,
+        username: actor.username || session.user.username,
+        full_name: actor.full_name || session.user.name,
+        avatar_url: actor.avatar_url || null,
+      };
+
+      const postOwnerId = post.rows[0]?.user_id;
+
+      if (postOwnerId && postOwnerId !== session.user.id) {
+        // Notify post owner
+        const notifRes = await pool.query(
           `INSERT INTO notifications (user_id, type, actor_id, post_id, content)
-           VALUES ($1, 'like', $2, $3, $4)`,
-          [post.rows[0].user_id, session.user.id, params.postId, `${session.user.username} liked your post`]
+           VALUES ($1, 'like', $2, $3, $4) RETURNING *`,
+          [postOwnerId, session.user.id, params.postId, `${actorPayload.username} liked your post`]
         );
+        if (pusherServer && notifRes.rows.length > 0) {
+          await pusherServer.trigger(`user-notifications-${postOwnerId}`, 'new-notification', {
+            ...notifRes.rows[0],
+            actor: actorPayload,
+          });
+        }
+      }
+
+      // Notify all followers of the liker: "Friend X liked a post"
+      if (pusherServer) {
+        try {
+          const followersRes = await pool.query(
+            'SELECT follower_id FROM follows WHERE following_id = $1',
+            [session.user.id]
+          );
+          for (const row of followersRes.rows) {
+            if (row.follower_id === postOwnerId) continue; // already notified
+            await pusherServer.trigger(`user-notifications-${row.follower_id}`, 'new-notification', {
+              id: `friend-like-${Date.now()}`,
+              type: 'like',
+              content: `liked a post`,
+              actor: actorPayload,
+              post: { id: params.postId, content: '' },
+              is_read: false,
+              created_at: new Date().toISOString(),
+            }).catch(() => {}); // silent fail per follower
+          }
+        } catch (_) {} // follows table may not exist yet
       }
 
       return NextResponse.json({ liked: true });

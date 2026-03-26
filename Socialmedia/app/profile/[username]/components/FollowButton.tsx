@@ -17,10 +17,11 @@ export function FollowButton({ userId, initialIsFollowing }: FollowButtonProps) 
   const handleFollow = async () => {
     setIsLoading(true);
     try {
-      // Simulate API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setIsFollowing(!isFollowing);
-      toast.success(isFollowing ? 'Unfollowed' : 'Following');
+      const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      setIsFollowing(data.following);
+      toast.success(data.following ? 'Following!' : 'Unfollowed');
     } catch (error) {
       toast.error('Failed to update follow status');
     } finally {

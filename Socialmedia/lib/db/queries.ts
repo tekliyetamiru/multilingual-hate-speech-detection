@@ -1,5 +1,5 @@
 import { pool } from './index';
-import { User, Post, Comment } from '@/types';
+import { User, Post, Comment, Notification } from '@/types';
 
 // Helper to check if we're in browser
 const isBrowser = typeof window !== 'undefined';
@@ -53,6 +53,7 @@ const mockPosts = [
   },
 ];
 
+// Deleted mockNotifications
 export const db = {
   users: {
     async create(userData: any) {
@@ -217,5 +218,70 @@ export const db = {
         { id: '3', name: 'webdev', posts_count: 10987 },
       ];
     },
+  },
+
+  notifications: {
+    async getFeed(userId: string) {
+      if (isBrowser) return [];
+      try {
+        const query = `
+          SELECT 
+            n.id, 
+            n.user_id, 
+            n.type, 
+            n.content, 
+            n.is_read, 
+            n.created_at,
+            json_build_object(
+              'id', u.id,
+              'username', u.username,
+              'avatar_url', u.avatar_url
+            ) as actor
+          FROM notifications n
+          JOIN users u ON n.actor_id = u.id
+          WHERE n.user_id = $1
+          ORDER BY n.created_at DESC
+        `;
+        const result = await pool.query(query, [userId]);
+        return result.rows;
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        return [];
+      }
+    },
+
+    async getUnreadCount(userId: string) {
+      if (isBrowser) return 0;
+      try {
+        const query = 'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = false';
+        const result = await pool.query(query, [userId]);
+        return parseInt(result.rows[0].count, 10);
+      } catch (error) {
+        console.error('Error fetching unread notifications count:', error);
+        return 0;
+      }
+    },
+
+    async markAsRead(notificationId: string) {
+      if (isBrowser) return { success: false };
+      try {
+        await pool.query('UPDATE notifications SET is_read = true WHERE id = $1', [notificationId]);
+        return { success: true };
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+        return { success: false };
+      }
+    },
+
+    async markAllAsRead(userId: string) {
+      if (isBrowser) return { success: false };
+      try {
+        await pool.query('UPDATE notifications SET is_read = true WHERE user_id = $1', [userId]);
+        return { success: true };
+      } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+        return { success: false };
+      }
+    }
   },
 };
