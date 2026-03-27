@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -15,8 +15,9 @@ import {
   XCircle,
   Download,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Avatar } from '@/components/ui/Avatar';
@@ -35,11 +36,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/Select';
+import { toast } from 'react-hot-toast';
 
 interface Post {
   id: string;
   author: {
     username: string;
+    full_name: string;
     avatar_url: string;
   };
   content: string;
@@ -47,8 +50,8 @@ interface Post {
   likes_count: number;
   comments_count: number;
   shares_count: number;
-  status: 'published' | 'pending' | 'reported' | 'archived';
-  reports_count?: number;
+  status: 'published' | 'reported' | 'archived';
+  reports_count: number;
 }
 
 export default function PostsManagementPage() {
@@ -56,47 +59,80 @@ export default function PostsManagementPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchPosts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '10',
+        search: searchQuery,
+        status: filterStatus,
+      });
+      const response = await fetch(`/api/admin/posts?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch posts');
+      const data = await response.json();
+      setPosts(data.posts);
+      setTotalPages(data.pagination.totalPages);
+      setTotalPosts(data.pagination.total);
+    } catch (error) {
+      console.error('Error fetching posts:', error);
+      toast.error('Failed to load posts');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, searchQuery, filterStatus]);
 
   useEffect(() => {
-    // Mock data
-    setPosts([
-      {
-        id: '1',
-        author: { username: 'john_doe', avatar_url: '' },
-        content: 'Just launched our new feature! 🚀',
-        created_at: new Date().toISOString(),
-        likes_count: 1243,
-        comments_count: 89,
-        shares_count: 45,
-        status: 'published',
-      },
-      {
-        id: '2',
-        author: { username: 'jane_smith', avatar_url: '' },
-        content: 'Check out this amazing sunset 🌅',
-        created_at: new Date().toISOString(),
-        likes_count: 987,
-        comments_count: 45,
-        shares_count: 23,
-        status: 'reported',
-        reports_count: 3,
-      },
-    ]);
-    setLoading(false);
-  }, []);
+    fetchPosts();
+  }, [fetchPosts]);
+
+  const handlePostAction = async (postId: string, action: string) => {
+    setActionLoading(postId);
+    try {
+      const response = await fetch('/api/admin/posts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ postId, action }),
+      });
+      if (response.ok) {
+        toast.success(`Post ${action}ed successfully`);
+        fetchPosts();
+      } else {
+        toast.error(`Failed to ${action} post`);
+      }
+    } catch (error) {
+      toast.error(`Failed to ${action} post`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  if (loading && page === 1) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Posts Management</h1>
         <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={fetchPosts}>
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
-          </Button>
-          <Button variant="outline">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
           </Button>
         </div>
       </div>
@@ -106,25 +142,25 @@ export default function PostsManagementPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">Total Posts</p>
-            <p className="text-2xl font-bold">45,678</p>
+            <p className="text-2xl font-bold">{totalPosts.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">Published</p>
-            <p className="text-2xl font-bold">42,123</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-gray-500">Pending Review</p>
-            <p className="text-2xl font-bold">234</p>
+            <p className="text-2xl font-bold">{posts.filter(p => p.status === 'published').length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">Reported</p>
-            <p className="text-2xl font-bold">89</p>
+            <p className="text-2xl font-bold">{posts.filter(p => p.status === 'reported').length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-500">Archived</p>
+            <p className="text-2xl font-bold">{posts.filter(p => p.status === 'archived').length}</p>
           </CardContent>
         </Card>
       </div>
@@ -142,7 +178,7 @@ export default function PostsManagementPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             <Select value={filterStatus} onValueChange={setFilterStatus}>
               <SelectTrigger>
                 <Filter className="h-4 w-4 mr-2" />
@@ -151,13 +187,12 @@ export default function PostsManagementPage() {
               <SelectContent>
                 <SelectItem value="all">All Posts</SelectItem>
                 <SelectItem value="published">Published</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="reported">Reported</SelectItem>
                 <SelectItem value="archived">Archived</SelectItem>
               </SelectContent>
             </Select>
 
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" onClick={fetchPosts}>
               Apply Filters
             </Button>
           </div>
@@ -207,9 +242,6 @@ export default function PostsManagementPage() {
                       {post.status === 'published' && (
                         <Badge variant="success">Published</Badge>
                       )}
-                      {post.status === 'pending' && (
-                        <Badge variant="warning">Pending</Badge>
-                      )}
                       {post.status === 'reported' && (
                         <Badge variant="destructive">
                           Reported ({post.reports_count})
@@ -225,8 +257,12 @@ export default function PostsManagementPage() {
                     <td className="px-4 py-4 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" disabled={actionLoading === post.id}>
+                            {actionLoading === post.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MoreVertical className="h-4 w-4" />
+                            )}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -239,17 +275,34 @@ export default function PostsManagementPage() {
                             Edit
                           </DropdownMenuItem>
                           {post.status === 'reported' && (
-                            <DropdownMenuItem className="text-green-600">
+                            <DropdownMenuItem
+                              onClick={() => handlePostAction(post.id, 'approve')}
+                              className="text-green-600"
+                            >
                               <CheckCircle className="h-4 w-4 mr-2" />
                               Approve
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem>
-                            <Archive className="h-4 w-4 mr-2" />
-                            Archive
-                          </DropdownMenuItem>
+                          {post.status !== 'archived' ? (
+                            <DropdownMenuItem
+                              onClick={() => handlePostAction(post.id, 'archive')}
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              Archive
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              onClick={() => handlePostAction(post.id, 'unarchive')}
+                            >
+                              <Archive className="h-4 w-4 mr-2" />
+                              Unarchive
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem
+                            onClick={() => handlePostAction(post.id, 'delete')}
+                            className="text-red-600"
+                          >
                             <Trash2 className="h-4 w-4 mr-2" />
                             Delete
                           </DropdownMenuItem>
@@ -263,6 +316,34 @@ export default function PostsManagementPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-gray-500">
+          Showing {posts.length} of {totalPosts} posts
+        </p>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
+            Previous
+          </Button>
+          <span className="text-sm">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
