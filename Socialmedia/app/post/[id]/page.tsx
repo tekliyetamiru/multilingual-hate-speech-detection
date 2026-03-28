@@ -9,13 +9,15 @@ import CommentSection from '@/components/comments/CommentSection';
 
 interface Post {
   id: string;
-  title: string;
+  title?: string;
   content: string;
   user_id: string;
   created_at: string;
   username: string;
   full_name: string;
   avatar_url?: string;
+  media_urls?: string[];
+  media_types?: string[];
   comments_count: number;
 }
 
@@ -221,12 +223,38 @@ export default function PostPage() {
               </div>
             </div>
             
-            {/* Post Content */}
+            {/* Post Text Content */}
             <div className="prose dark:prose-invert max-w-none">
               <p className="text-gray-700 whitespace-pre-wrap dark:text-gray-300">
                 {post.content}
               </p>
             </div>
+
+            {/* Post Media */}
+            {post.media_urls && post.media_urls.length > 0 && (
+              <div className="mt-6 space-y-4">
+                {post.media_urls.map((url, index) => (
+                  <div key={index} className="overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-900">
+                    {post.media_types?.[index] === 'video' ? (
+                      <video 
+                        src={url} 
+                        controls 
+                        className="w-full max-h-[600px] object-contain"
+                      />
+                    ) : (
+                      <img 
+                        src={url} 
+                        alt={`Media ${index + 1}`}
+                        className="w-full max-h-[600px] object-contain mx-auto"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             
             {/* Post Stats */}
             <div className="pt-4 mt-6 border-t border-gray-200 dark:border-gray-700">
