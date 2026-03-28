@@ -11,24 +11,25 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Loader2 } from 'lucide-react';
 
 export function UserGrowthChart() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    const mockData = [];
-    for (let i = 30; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      mockData.push({
-        date: date.toLocaleDateString(),
-        users: Math.floor(Math.random() * 50) + 100,
-      });
-    }
-    setData(mockData);
-    setLoading(false);
+    const fetchData = async () => {
+      try {
+        const response = await fetch('/api/admin/analytics');
+        const json = await response.json();
+        setData(json.userGrowth);
+      } catch (error) {
+        console.error('Failed to fetch chart data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, []);
 
   if (loading) {
@@ -38,7 +39,9 @@ export function UserGrowthChart() {
           <CardTitle>User Growth</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-80 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+          <div className="h-80 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          </div>
         </CardContent>
       </Card>
     );
@@ -57,7 +60,7 @@ export function UserGrowthChart() {
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip />
-              <Line type="monotone" dataKey="users" stroke="#8884d8" />
+              <Line type="monotone" dataKey="count" stroke="#8884d8" />
             </LineChart>
           </ResponsiveContainer>
         </div>

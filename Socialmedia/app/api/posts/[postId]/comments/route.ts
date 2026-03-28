@@ -1,4 +1,3 @@
-
 // app/api/posts/[postId]/comments/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -92,6 +91,7 @@ export async function POST(
       avatar_url: userResult.rows[0].avatar_url,
       replies: [],
     };
+
     // Get post owner for notification
     const post = await pool.query(
       `SELECT user_id FROM posts WHERE id = $1`,

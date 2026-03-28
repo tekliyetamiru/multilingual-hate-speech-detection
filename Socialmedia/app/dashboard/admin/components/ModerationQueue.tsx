@@ -2,71 +2,52 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle, CheckCircle, XCircle, Eye, EyeOff } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { toast } from 'react-hot-toast';
 
-interface ModerationItem {
-  id: string;
-  type: 'post' | 'comment' | 'user';
-  content: string;
-  reported_by: string;
-  reason: string;
-  severity: 'low' | 'medium' | 'high';
-}
-
 export function ModerationQueue() {
-  const [items, setItems] = useState<ModerationItem[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    setItems([
-      {
-        id: '1',
-        type: 'post',
-        content: 'Inappropriate content here...',
-        reported_by: 'user123',
-        reason: 'Harassment',
-        severity: 'high',
-      },
-      {
-        id: '2',
-        type: 'comment',
-        content: 'Spam comment',
-        reported_by: 'user456',
-        reason: 'Spam',
-        severity: 'medium',
-      },
-      {
-        id: '3',
-        type: 'user',
-        content: 'User profile with inappropriate bio',
-        reported_by: 'user789',
-        reason: 'Inappropriate profile',
-        severity: 'low',
-      },
-    ]);
-    setLoading(false);
+    fetchReports();
   }, []);
 
-  const handleAction = (action: string, itemId: string) => {
-    toast.success(`Item ${action} successfully`);
-    setItems(prev => prev.filter(item => item.id !== itemId));
+  const fetchReports = async () => {
+    try {
+      const response = await fetch('/api/admin/reports?status=pending');
+      const data = await response.json();
+      setReports(data.reports);
+    } catch (error) {
+      console.error('Failed to fetch reports:', error);
+      toast.error('Failed to load moderation queue');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
-      case 'low':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
-      default:
-        return '';
+  const handleAction = async (reportId: string, action: string, notes?: string) => {
+    setProcessing(reportId);
+    try {
+      const response = await fetch('/api/admin/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, action, notes }),
+      });
+      if (response.ok) {
+        toast.success(`Report ${action}d successfully`);
+        setReports(prev => prev.filter(r => r.id !== reportId));
+      } else {
+        toast.error(`Failed to ${action} report`);
+      }
+    } catch (error) {
+      toast.error(`Failed to ${action} report`);
+    } finally {
+      setProcessing(null);
     }
   };
 
@@ -77,10 +58,25 @@ export function ModerationQueue() {
           <CardTitle>Moderation Queue</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-20 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
-            ))}
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (reports.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Moderation Queue</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-8 text-gray-500">
+            <CheckCircle className="h-12 w-12 mx-auto mb-3 text-green-500" />
+            <p>No pending reports</p>
+            <p className="text-sm">All clear! 🎉</p>
           </div>
         </CardContent>
       </Card>
@@ -92,54 +88,74 @@ export function ModerationQueue() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           Moderation Queue
-          <Badge variant="destructive">{items.length} pending</Badge>
+          <Badge variant="destructive">{reports.length} pending</Badge>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {items.map((item) => (
+          {reports.map((report) => (
             <motion.div
-              key={item.id}
+              key={report.id}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg"
             >
               <div className="flex items-start justify-between mb-2">
-                <Badge className={getSeverityColor(item.severity)}>
-                  {item.severity} priority
+                <div>
+                  <p className="font-medium">Reported by @{report.reporter_username}</p>
+                  <p className="text-sm text-gray-500">Reason: {report.reason}</p>
+                </div>
+                <Badge variant="outline" className="ml-2">
+                  {report.reported_post ? 'Post' : report.reported_comment ? 'Comment' : 'User'}
                 </Badge>
-                <Badge variant="outline">{item.type}</Badge>
               </div>
-              <p className="text-sm mb-2 line-clamp-2">{item.content}</p>
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                <span>Reported by @{item.reported_by}</span>
-                <span>Reason: {item.reason}</span>
-              </div>
-              <div className="flex space-x-2">
+              
+              {report.reported_post && (
+                <div className="bg-white dark:bg-gray-700 p-3 rounded mb-3">
+                  <p className="text-sm">Content: {report.reported_post.content}</p>
+                </div>
+              )}
+              {report.reported_comment && (
+                <div className="bg-white dark:bg-gray-700 p-3 rounded mb-3">
+                  <p className="text-sm">Comment: {report.reported_comment.content}</p>
+                </div>
+              )}
+              {report.reported_user && (
+                <div className="bg-white dark:bg-gray-700 p-3 rounded mb-3">
+                  <p className="text-sm">Reported user: @{report.reported_user.username}</p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => handleAction(report.id, 'dismiss')}
+                  disabled={processing === report.id}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  Dismiss
+                </Button>
                 <Button
                   size="sm"
                   variant="default"
-                  className="flex-1"
-                  onClick={() => handleAction('approved', item.id)}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  onClick={() => handleAction(report.id, 'resolve')}
+                  disabled={processing === report.id}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
+                  Resolve
                 </Button>
                 <Button
                   size="sm"
                   variant="destructive"
                   className="flex-1"
-                  onClick={() => handleAction('rejected', item.id)}
+                  onClick={() => handleAction(report.id, 'remove_content')}
+                  disabled={processing === report.id}
                 >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleAction('hidden', item.id)}
-                >
-                  <EyeOff className="h-4 w-4" />
+                  <EyeOff className="h-4 w-4 mr-2" />
+                  Remove
                 </Button>
               </div>
             </motion.div>

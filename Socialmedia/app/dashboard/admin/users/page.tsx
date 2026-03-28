@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -17,6 +17,7 @@ import {
   Download,
   Upload,
   RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -37,6 +38,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/Select';
+import { toast } from 'react-hot-toast';
 
 interface User {
   id: string;
@@ -44,7 +46,7 @@ interface User {
   email: string;
   full_name: string;
   avatar_url: string;
-  joined_date: string;
+  created_at: string;
   location?: string;
   is_verified: boolean;
   is_admin: boolean;
@@ -62,109 +64,109 @@ export default function UsersManagementPage() {
   const [filterRole, setFilterRole] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20',
+        search: searchQuery,
+        role: filterRole,
+        status: filterStatus,
+        sortBy: 'created_at',
+        sortOrder: 'DESC',
+      });
+      const response = await fetch(`/api/admin/users?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch users');
+      const data = await response.json();
+      setUsers(data.users);
+      setTotalPages(data.pagination.totalPages);
+      setTotalUsers(data.pagination.total);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to load users');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, searchQuery, filterRole, filterStatus]);
 
   useEffect(() => {
-    // Mock data - replace with API call
-    setUsers([
-      {
-        id: '1',
-        username: 'john_doe',
-        email: 'john@example.com',
-        full_name: 'John Doe',
-        avatar_url: '',
-        joined_date: '2024-01-15',
-        location: 'New York, USA',
-        is_verified: true,
-        is_admin: false,
-        is_banned: false,
-        posts_count: 45,
-        followers_count: 1234,
-        following_count: 567,
-        last_active: '2024-03-05T10:30:00Z',
-      },
-      {
-        id: '2',
-        username: 'jane_smith',
-        email: 'jane@example.com',
-        full_name: 'Jane Smith',
-        avatar_url: '',
-        joined_date: '2024-02-20',
-        location: 'London, UK',
-        is_verified: true,
-        is_admin: true,
-        is_banned: false,
-        posts_count: 89,
-        followers_count: 3456,
-        following_count: 234,
-        last_active: '2024-03-05T09:15:00Z',
-      },
-      {
-        id: '3',
-        username: 'bob_wilson',
-        email: 'bob@example.com',
-        full_name: 'Bob Wilson',
-        avatar_url: '',
-        joined_date: '2024-03-01',
-        location: 'Toronto, Canada',
-        is_verified: false,
-        is_admin: false,
-        is_banned: true,
-        posts_count: 12,
-        followers_count: 89,
-        following_count: 123,
-        last_active: '2024-03-04T22:45:00Z',
-      },
-    ]);
-    setLoading(false);
-  }, []);
+    fetchUsers();
+  }, [fetchUsers]);
 
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.full_name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesRole = filterRole === 'all' ? true :
-      filterRole === 'admin' ? user.is_admin :
-      filterRole === 'user' ? !user.is_admin : true;
-    
-    const matchesStatus = filterStatus === 'all' ? true :
-      filterStatus === 'verified' ? user.is_verified :
-      filterStatus === 'banned' ? user.is_banned :
-      filterStatus === 'active' ? !user.is_banned : true;
-    
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  const handleUserAction = async (userId: string, action: string) => {
+    setActionLoading(userId);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action }),
+      });
+      if (response.ok) {
+        toast.success(`User ${action} successful`);
+        fetchUsers(); // refresh list
+      } else {
+        const error = await response.json();
+        toast.error(error.error || `Failed to ${action} user`);
+      }
+    } catch (error) {
+      toast.error(`Failed to ${action} user`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
-  const handleBulkAction = (action: string) => {
-    // Implement bulk actions
-    console.log(`Bulk ${action} for users:`, selectedUsers);
+  const handleBulkAction = async (action: string) => {
+    if (selectedUsers.length === 0) return;
+    setActionLoading('bulk');
+    try {
+      // Process each user sequentially or in parallel? We'll do parallel with Promise.all
+      const promises = selectedUsers.map(userId =>
+        fetch('/api/admin/users', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, action }),
+        })
+      );
+      const results = await Promise.all(promises);
+      const allOk = results.every(res => res.ok);
+      if (allOk) {
+        toast.success(`Bulk ${action} completed for ${selectedUsers.length} users`);
+        setSelectedUsers([]);
+        fetchUsers();
+      } else {
+        toast.error(`Some users failed to ${action}`);
+      }
+    } catch (error) {
+      toast.error(`Failed to perform bulk ${action}`);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const toggleSelectAll = () => {
-    if (selectedUsers.length === filteredUsers.length) {
+    if (selectedUsers.length === users.length) {
       setSelectedUsers([]);
     } else {
-      setSelectedUsers(filteredUsers.map(u => u.id));
+      setSelectedUsers(users.map(u => u.id));
     }
   };
 
   const toggleSelectUser = (userId: string) => {
     setSelectedUsers(prev =>
-      prev.includes(userId)
-        ? prev.filter(id => id !== userId)
-        : [...prev, userId]
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
     );
   };
 
-  if (loading) {
+  if (loading && page === 1) {
     return (
-      <div className="space-y-4">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-          ))}
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     );
   }
@@ -175,17 +177,13 @@ export default function UsersManagementPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Users Management</h1>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" onClick={() => window.location.reload()}>
+          <Button variant="outline" onClick={fetchUsers}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
           </Button>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
-          </Button>
-          <Button>
-            <Upload className="h-4 w-4 mr-2" />
-            Import
           </Button>
         </div>
       </div>
@@ -195,25 +193,25 @@ export default function UsersManagementPage() {
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">Total Users</p>
-            <p className="text-2xl font-bold">12,345</p>
+            <p className="text-2xl font-bold">{totalUsers.toLocaleString()}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">Active Today</p>
-            <p className="text-2xl font-bold">1,234</p>
+            <p className="text-2xl font-bold">—</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">Verified Users</p>
-            <p className="text-2xl font-bold">8,901</p>
+            <p className="text-2xl font-bold">{users.filter(u => u.is_verified).length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <p className="text-sm text-gray-500">Banned Users</p>
-            <p className="text-2xl font-bold">56</p>
+            <p className="text-2xl font-bold">{users.filter(u => u.is_banned).length}</p>
           </CardContent>
         </Card>
       </div>
@@ -231,7 +229,7 @@ export default function UsersManagementPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            
+
             <Select value={filterRole} onValueChange={setFilterRole}>
               <SelectTrigger>
                 <Filter className="h-4 w-4 mr-2" />
@@ -256,7 +254,7 @@ export default function UsersManagementPage() {
               </SelectContent>
             </Select>
 
-            <Button variant="outline" className="w-full">
+            <Button variant="outline" onClick={fetchUsers}>
               Apply Filters
             </Button>
           </div>
@@ -271,19 +269,39 @@ export default function UsersManagementPage() {
               {selectedUsers.length} users selected
             </span>
             <div className="flex items-center space-x-2">
-              <Button size="sm" variant="outline" onClick={() => handleBulkAction('verify')}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkAction('verify')}
+                disabled={actionLoading === 'bulk'}
+              >
                 <UserCheck className="h-4 w-4 mr-2" />
                 Verify
               </Button>
-              <Button size="sm" variant="outline" onClick={() => handleBulkAction('ban')}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkAction('ban')}
+                disabled={actionLoading === 'bulk'}
+              >
                 <UserX className="h-4 w-4 mr-2" />
                 Ban
               </Button>
-              <Button size="sm" variant="outline" onClick={() => handleBulkAction('make-admin')}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkAction('make-admin')}
+                disabled={actionLoading === 'bulk'}
+              >
                 <Shield className="h-4 w-4 mr-2" />
                 Make Admin
               </Button>
-              <Button size="sm" variant="destructive" onClick={() => handleBulkAction('delete')}>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => handleBulkAction('delete')}
+                disabled={actionLoading === 'bulk'}
+              >
                 Delete
               </Button>
             </div>
@@ -301,7 +319,7 @@ export default function UsersManagementPage() {
                   <th className="px-4 py-3 text-left">
                     <input
                       type="checkbox"
-                      checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                      checked={selectedUsers.length === users.length && users.length > 0}
                       onChange={toggleSelectAll}
                       className="rounded border-gray-300"
                     />
@@ -327,7 +345,7 @@ export default function UsersManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredUsers.map((user) => (
+                {users.map((user) => (
                   <motion.tr
                     key={user.id}
                     initial={{ opacity: 0 }}
@@ -347,7 +365,7 @@ export default function UsersManagementPage() {
                         <Avatar src={user.avatar_url} alt={user.username} size="md" />
                         <div>
                           <div className="flex items-center space-x-2">
-                            <p className="font-medium">{user.full_name}</p>
+                            <p className="font-medium">{user.full_name || user.username}</p>
                             {user.is_verified && (
                               <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                             )}
@@ -383,16 +401,20 @@ export default function UsersManagementPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4 text-sm">
-                      {new Date(user.joined_date).toLocaleDateString()}
+                      {new Date(user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-4 text-sm">
-                      {new Date(user.last_active).toLocaleString()}
+                      {user.last_active ? new Date(user.last_active).toLocaleString() : 'Never'}
                     </td>
                     <td className="px-4 py-4 text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreVertical className="h-4 w-4" />
+                          <Button variant="ghost" size="sm" disabled={actionLoading === user.id}>
+                            {actionLoading === user.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <MoreVertical className="h-4 w-4" />
+                            )}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -401,18 +423,37 @@ export default function UsersManagementPage() {
                           <DropdownMenuItem>Send Message</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {!user.is_verified && (
-                            <DropdownMenuItem>Verify User</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUserAction(user.id, 'verify')}>
+                              Verify User
+                            </DropdownMenuItem>
                           )}
                           {!user.is_banned ? (
-                            <DropdownMenuItem className="text-red-600">Ban User</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleUserAction(user.id, 'ban')}
+                              className="text-red-600"
+                            >
+                              Ban User
+                            </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem className="text-green-600">Unban User</DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleUserAction(user.id, 'unban')}
+                              className="text-green-600"
+                            >
+                              Unban User
+                            </DropdownMenuItem>
                           )}
                           {!user.is_admin && (
-                            <DropdownMenuItem>Make Admin</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleUserAction(user.id, 'make-admin')}>
+                              Make Admin
+                            </DropdownMenuItem>
                           )}
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">Delete User</DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleUserAction(user.id, 'delete')}
+                            className="text-red-600"
+                          >
+                            Delete User
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -427,22 +468,26 @@ export default function UsersManagementPage() {
       {/* Pagination */}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">
-          Showing {filteredUsers.length} of {users.length} users
+          Showing {users.length} of {totalUsers} users
         </p>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" disabled>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+          >
             Previous
           </Button>
-          <Button variant="outline" size="sm" className="bg-purple-600 text-white">
-            1
-          </Button>
-          <Button variant="outline" size="sm">
-            2
-          </Button>
-          <Button variant="outline" size="sm">
-            3
-          </Button>
-          <Button variant="outline" size="sm">
+          <span className="text-sm">
+            Page {page} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+          >
             Next
           </Button>
         </div>

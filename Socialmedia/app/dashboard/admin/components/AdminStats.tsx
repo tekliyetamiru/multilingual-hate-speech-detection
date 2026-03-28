@@ -12,35 +12,25 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/Card';
 
-interface Stats {
-  totalUsers: number;
-  newUsersToday: number;
-  totalPosts: number;
-  postsToday: number;
-  pendingReports: number;
-  activeSessions: number;
-  userGrowth: number;
-  postGrowth: number;
-}
-
 export function AdminStats() {
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data - replace with actual API call
-    setStats({
-      totalUsers: 15432,
-      newUsersToday: 128,
-      totalPosts: 45321,
-      postsToday: 345,
-      pendingReports: 23,
-      activeSessions: 891,
-      userGrowth: 12.5,
-      postGrowth: 8.3,
-    });
-    setLoading(false);
+    fetchStats();
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/stats');
+      const data = await response.json();
+      setStats(data);
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -59,7 +49,7 @@ export function AdminStats() {
   const statCards = [
     {
       title: 'Total Users',
-      value: stats?.totalUsers.toLocaleString(),
+      value: stats?.totalUsers?.toLocaleString(),
       icon: Users,
       color: 'bg-blue-500',
       change: stats?.userGrowth,
@@ -67,13 +57,13 @@ export function AdminStats() {
     },
     {
       title: 'New Users Today',
-      value: stats?.newUsersToday.toLocaleString(),
+      value: stats?.newUsersToday?.toLocaleString(),
       icon: Users,
       color: 'bg-green-500',
     },
     {
       title: 'Total Posts',
-      value: stats?.totalPosts.toLocaleString(),
+      value: stats?.totalPosts?.toLocaleString(),
       icon: FileText,
       color: 'bg-purple-500',
       change: stats?.postGrowth,
@@ -81,19 +71,19 @@ export function AdminStats() {
     },
     {
       title: 'Posts Today',
-      value: stats?.postsToday.toLocaleString(),
+      value: stats?.postsToday?.toLocaleString(),
       icon: FileText,
       color: 'bg-yellow-500',
     },
     {
       title: 'Pending Reports',
-      value: stats?.pendingReports.toLocaleString(),
+      value: stats?.pendingReports?.toLocaleString(),
       icon: AlertTriangle,
       color: 'bg-red-500',
     },
     {
       title: 'Active Sessions',
-      value: stats?.activeSessions.toLocaleString(),
+      value: stats?.activeSessions?.toLocaleString(),
       icon: Activity,
       color: 'bg-indigo-500',
     },
