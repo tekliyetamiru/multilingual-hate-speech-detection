@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
@@ -54,8 +54,11 @@ export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
   const [isArchiving, setIsArchiving] = useState(false);
   const [comment, setComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-  const [comments, setComments] = useState(post.recent_comments || []);
+  const [comments, setComments] = useState<any[]>(post.recent_comments || []);
+  const [commentsCount, setCommentsCount] = useState<number>(post.comments_count || 0);
   const [showAllComments, setShowAllComments] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
 
   const visibilityIcons = {
     public: <Globe className="h-4 w-4" />,
@@ -112,6 +115,26 @@ export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
       toast.error("Failed to save post");
     }
   };
+
+  const fetchComments = async () => {
+    try {
+      const res = await fetch(`/api/posts/${post.id}/comments`);
+      if (res.ok) {
+        const data = await res.json();
+        setComments(data);
+        setCommentsCount(data.length);
+      }
+    } catch (error) {
+      toast.error("Failed to load comments");
+    }
+  };
+
+  useEffect(() => {
+    if (showComments) {
+      fetchComments();
+    }
+  }, [showComments]);
+
 
   const handleShare = () => {
     if (navigator.share) {
@@ -186,9 +209,15 @@ export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
 
       if (res.ok) {
         const newComment = await res.json();
-        setComments([newComment, ...comments]);
+        const updatedCount = commentsCount + 1;
+        setComments((prev) => [newComment, ...prev]);
+        setCommentsCount(updatedCount);
+        onUpdate?.({ ...post, comments_count: updatedCount });
         setComment("");
         toast.success("Comment added");
+      } else {
+        const data = await res.json();
+        toast.error(data?.error || "Failed to add comment");
       }
     } catch (error) {
       toast.error("Failed to add comment");
@@ -196,6 +225,42 @@ export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
       setIsSubmittingComment(false);
     }
   };
+
+  const handleReply = async (parentCommentId: string) => {
+    const content = replyText[parentCommentId]?.trim();
+    if (!content) return;
+
+    try {
+      const res = await fetch(`/api/posts/${post.id}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content, parentId: parentCommentId }),
+      });
+
+      if (res.ok) {
+        const newReply = await res.json();
+        setComments((prev) =>
+          prev.map((c) =>
+            c.id === parentCommentId
+              ? { ...c, replies: [...(c.replies || []), newReply] }
+              : c,
+          ),
+        );
+        const updatedCount = commentsCount + 1;
+        setCommentsCount(updatedCount);
+        onUpdate?.({ ...post, comments_count: updatedCount });
+        setReplyText((prev) => ({ ...prev, [parentCommentId]: "" }));
+        setReplyingTo(null);
+        toast.success("Reply posted");
+      } else {
+        const data = await res.json();
+        toast.error(data?.error || "Failed to post reply");
+      }
+    } catch (error) {
+      toast.error("Failed to post reply");
+    }
+  };
+
 
   return (
     <motion.article
@@ -356,7 +421,7 @@ export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
               className="flex items-center space-x-1 hover:text-blue-500 transition"
             >
               <MessageCircle className="h-5 w-5" />
-              <span className="font-medium">{post.comments_count}</span>
+              <span className="font-medium">{commentsCount}</span>
             </button>
             <button className="flex items-center space-x-1 hover:text-green-500 transition">
               <Share2 className="h-5 w-5" />
@@ -412,32 +477,101 @@ export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
             <div className="px-4 pb-4 space-y-3">
               {(showAllComments ? comments : comments.slice(0, 2)).map(
                 (comment: any) => (
-                  <div key={comment.id} className="flex space-x-2">
-                    <Avatar
-                      src={comment.user?.avatar_url}
-                      alt={comment.user?.username}
-                      size="sm"
-                    />
-                    <div className="flex-1">
-                      <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
-                        <Link
-                          href={`/profile/${comment.user?.username}`}
-                          className="font-semibold text-sm hover:underline"
-                        >
-                          {comment.user?.full_name || comment.user?.username}
-                        </Link>
-                        <p className="text-sm">{comment.content}</p>
-                      </div>
-                      <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
-                        <span>
-                          {formatDistanceToNow(new Date(comment.created_at), {
-                            addSuffix: true,
-                          })}
-                        </span>
-                        <button className="hover:text-gray-700">Like</button>
-                        <button className="hover:text-gray-700">Reply</button>
+                  <div key={comment.id} className="space-y-2">
+                    <div className="flex space-x-2">
+                      <Avatar
+                        src={comment.user?.avatar_url}
+                        alt={comment.user?.username}
+                        size="sm"
+                      />
+                      <div className="flex-1">
+                        <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
+                          <Link
+                            href={`/profile/${comment.user?.username}`}
+                            className="font-semibold text-sm hover:underline"
+                          >
+                            {comment.user?.full_name || comment.user?.username}
+                          </Link>
+                          <p className="text-sm">{comment.content}</p>
+                        </div>
+                        <div className="flex items-center space-x-2 mt-1 text-xs text-gray-500">
+                          <span>
+                            {formatDistanceToNow(new Date(comment.created_at), {
+                              addSuffix: true,
+                            })}
+                          </span>
+                          <button
+                            onClick={() => {
+                              setReplyingTo(comment.id);
+                              setReplyText((prev) => ({ ...prev, [comment.id]: "" }));
+                            }}
+                            className="hover:text-gray-700"
+                          >
+                            Reply
+                          </button>
+                        </div>
                       </div>
                     </div>
+
+                    {comment.replies?.length > 0 && (
+                      <div className="ml-10 space-y-2">
+                        {comment.replies.map((reply: any) => (
+                          <div key={reply.id} className="flex space-x-2">
+                            <Avatar
+                              src={reply.user?.avatar_url}
+                              alt={reply.user?.username}
+                              size="sm"
+                            />
+                            <div className="flex-1">
+                              <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-2">
+                                <Link
+                                  href={`/profile/${reply.user?.username}`}
+                                  className="font-semibold text-sm hover:underline"
+                                >
+                                  {reply.user?.full_name || reply.user?.username}
+                                </Link>
+                                <p className="text-sm">{reply.content}</p>
+                              </div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {formatDistanceToNow(new Date(reply.created_at), {
+                                  addSuffix: true,
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {replyingTo === comment.id && (
+                      <div className="ml-10 flex items-start space-x-2">
+                        <Textarea
+                          value={replyText[comment.id] || ""}
+                          onChange={(e) =>
+                            setReplyText((prev) => ({
+                              ...prev,
+                              [comment.id]: e.target.value,
+                            }))
+                          }
+                          placeholder="Write a reply..."
+                          className="min-h-[34px] h-auto"
+                        />
+                        <Button
+                          onClick={() => handleReply(comment.id)}
+                          disabled={!replyText[comment.id]?.trim()}
+                          className="h-8"
+                        >
+                          Send
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="h-8"
+                          onClick={() => setReplyingTo(null)}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 ),
               )}
