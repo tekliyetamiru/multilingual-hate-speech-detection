@@ -125,22 +125,22 @@ export async function POST(req: NextRequest) {
         avatar_url: actorUser?.avatar_url || null,
       };
 
-      // Notify each follower directly
+      // Notify all users in the system directly
       try {
-        const followersRes = await pool.query(
-          'SELECT follower_id FROM follows WHERE following_id = $1',
+        const usersRes = await pool.query(
+          'SELECT id FROM users WHERE id != $1',
           [session.user.id]
         );
-        for (const row of followersRes.rows) {
+        for (const row of usersRes.rows) {
           // Store notification in database
           const notifRes = await pool.query(
             `INSERT INTO notifications (user_id, type, actor_id, post_id, content)
              VALUES ($1, 'system', $2, $3, $4) RETURNING *`,
-            [row.follower_id, session.user.id, postId, 'just published a new post!']
+            [row.id, session.user.id, postId, 'just published a new post!']
           );
 
           if (notifRes.rows.length > 0) {
-            await pusherServer.trigger(`user-notifications-${row.follower_id}`, 'new-notification', {
+            await pusherServer.trigger(`user-notifications-${row.id}`, 'new-notification', {
               ...notifRes.rows[0],
               actor: actorPayload,
               post: { id: postId, content: content?.slice(0, 80) },
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
           }
         }
       } catch (err) {
-        console.error('Failed to notify followers:', err);
+        console.error('Failed to notify users:', err);
       }
     }
 

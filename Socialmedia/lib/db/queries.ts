@@ -1,10 +1,8 @@
 import { pool } from './index';
 import { User, Post, Comment, Notification } from '@/types';
 
-// Helper to check if we're in browser
 const isBrowser = typeof window !== 'undefined';
 
-// Mock data for when database is unavailable
 const mockPosts = [
   {
     id: '1',
@@ -53,233 +51,130 @@ const mockPosts = [
   },
 ];
 
-// Deleted mockNotifications
 export const db = {
   users: {
     async create(userData: any) {
       if (isBrowser) return null;
-      const query = `
-        INSERT INTO users (username, email, password_hash, full_name)
-        VALUES ($1, $2, $3, $4)
-        RETURNING id, username, email, full_name, created_at
-      `;
-      const values = [userData.username, userData.email, userData.password_hash, userData.full_name];
       try {
-        const result = await pool.query(query, values);
+        const result = await pool.query(
+          'INSERT INTO users (username, email, password_hash, full_name) VALUES ($1, $2, $3, $4) RETURNING *',
+          [userData.username, userData.email, userData.password_hash, userData.full_name]
+        );
         return result.rows[0];
       } catch (error) {
-        console.error('Error creating user:', error);
         return null;
       }
     },
-
     async findByEmail(email: string) {
       if (isBrowser) return null;
-      const query = 'SELECT * FROM users WHERE email = $1';
       try {
-        const result = await pool.query(query, [email]);
+        const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
         return result.rows[0];
       } catch (error) {
-        console.error('Error finding user by email:', error);
         return null;
       }
     },
-
     async findByUsername(username: string) {
       if (isBrowser) return null;
-      const query = 'SELECT * FROM users WHERE username = $1';
       try {
-        const result = await pool.query(query, [username]);
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
         return result.rows[0];
       } catch (error) {
-        console.error('Error finding user by username:', error);
-        // Return mock user for development
-        return {
-          id: '1',
-          username: username,
-          email: `${username}@example.com`,
-          full_name: username,
-          bio: 'This is a sample bio',
-          avatar_url: 'https://i.pravatar.cc/150?u=' + username,
-          cover_url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?w=1200',
-          created_at: new Date().toISOString(),
-          is_verified: true,
-          is_private: false,
-          is_admin: username === 'admin',
-          location: 'New York, USA',
-          website: 'https://example.com',
-        };
-      }
-    },
-
-    async findById(id: string) {
-      if (isBrowser) return null;
-      const query = 'SELECT id, username, email, full_name, bio, avatar_url, created_at FROM users WHERE id = $1';
-      try {
-        const result = await pool.query(query, [id]);
-        return result.rows[0];
-      } catch (error) {
-        console.error('Error finding user by id:', error);
         return null;
       }
     },
-
-    async getFollowersCount(userId: string) {
-      if (isBrowser) return 1234;
+    async findById(id: string) {
+      if (isBrowser) return null;
       try {
-        // Replace with actual query
-        return 1234;
+        const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+        return result.rows[0];
       } catch (error) {
-        console.error('Error getting followers count:', error);
-        return 0;
+        return null;
       }
     },
-
-    async getFollowingCount(userId: string) {
-      if (isBrowser) return 567;
-      try {
-        // Replace with actual query
-        return 567;
-      } catch (error) {
-        console.error('Error getting following count:', error);
-        return 0;
-      }
-    },
-
-    async isFollowing(followerId: string, followingId: string) {
-      if (isBrowser) return false;
-      try {
-        // Replace with actual query
-        return false;
-      } catch (error) {
-        console.error('Error checking follow status:', error);
-        return false;
-      }
-    },
-
-    async isCloseFriend(userId: string, friendId: string) {
-      if (isBrowser) return false;
-      try {
-        // Replace with actual query
-        return false;
-      } catch (error) {
-        console.error('Error checking close friend status:', error);
-        return false;
-      }
-    },
+    async getFollowersCount(userId: string) { return 0; },
+    async getFollowingCount(userId: string) { return 0; },
+    async isFollowing(followerId: string, followingId: string) { return false; },
+    async isCloseFriend(userId: string, friendId: string) { return false; },
   },
 
   posts: {
-    async getFeed(userId: string, limit: number = 10, offset: number = 0) {
-      // Return mock data for now
-      return mockPosts;
-    },
-
-    async getUserPosts(userId: string, viewerId: string | null, limit: number, offset: number) {
-      // Return mock data
-      return mockPosts;
-    },
-
-    async getExploreFeed(limit: number = 10, offset: number = 0) {
-      return mockPosts;
-    },
-
-    async like(postId: string, userId: string) {
-      console.log('Like post:', postId, userId);
-      return { success: true };
-    },
-
-    async unlike(postId: string, userId: string) {
-      console.log('Unlike post:', postId, userId);
-      return { success: true };
-    },
-
-    async addReaction(postId: string, userId: string, reactionType: string) {
-      console.log('Add reaction:', postId, userId, reactionType);
-      return { success: true };
-    },
-
-    async delete(postId: string) {
-      console.log('Delete post:', postId);
-      return { success: true };
-    },
-
-    async archive(postId: string) {
-      console.log('Archive post:', postId);
-      return { success: true };
-    },
+    async getFeed(userId: string, limit: number = 10, offset: number = 0) { return mockPosts; },
+    async getUserPosts(userId: string, viewerId: string | null, limit: number, offset: number) { return mockPosts; },
+    async getExploreFeed(limit: number = 10, offset: number = 0) { return mockPosts; },
+    async like(postId: string, userId: string) { return { success: true }; },
+    async unlike(postId: string, userId: string) { return { success: true }; },
+    async addReaction(postId: string, userId: string, reactionType: string) { return { success: true }; },
+    async delete(postId: string) { return { success: true }; },
+    async archive(postId: string) { return { success: true }; },
   },
 
   hashtags: {
-    async getTrending(limit: number = 5) {
-      return [
-        { id: '1', name: 'technology', posts_count: 15432 },
-        { id: '2', name: 'coding', posts_count: 12345 },
-        { id: '3', name: 'webdev', posts_count: 10987 },
-      ];
-    },
+    async getTrending(limit: number = 5) { return []; },
   },
 
   notifications: {
     async getFeed(userId: string) {
       if (isBrowser) return [];
       try {
-        const query = `
-          SELECT 
-            n.id, 
-            n.user_id, 
-            n.type, 
-            n.content, 
-            n.is_read, 
+        const result = await pool.query(
+          `SELECT
+            n.id,
+            n.type,
+            n.content,
+            n.is_read,
             n.created_at,
+            n.post_id,
             json_build_object(
               'id', u.id,
               'username', u.username,
+              'full_name', u.full_name,
               'avatar_url', u.avatar_url
-            ) as actor
+            ) AS actor,
+            CASE WHEN n.post_id IS NOT NULL THEN
+              json_build_object('id', p.id, 'content', p.content)
+            ELSE NULL END AS post
           FROM notifications n
-          JOIN users u ON n.actor_id = u.id
+          JOIN users u ON u.id = n.actor_id
+          LEFT JOIN posts p ON p.id = n.post_id
           WHERE n.user_id = $1
           ORDER BY n.created_at DESC
-        `;
-        const result = await pool.query(query, [userId]);
+          LIMIT 50`,
+          [userId]
+        );
         return result.rows;
       } catch (error) {
-        console.error('Error fetching notifications:', error);
+        console.error('Error fetching notification feed:', error);
         return [];
       }
     },
-
     async getUnreadCount(userId: string) {
       if (isBrowser) return 0;
       try {
-        const query = 'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND is_read = false';
-        const result = await pool.query(query, [userId]);
+        const result = await pool.query(
+          'SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND is_read = false',
+          [userId]
+        );
         return parseInt(result.rows[0].count, 10);
       } catch (error) {
-        console.error('Error fetching unread notifications count:', error);
         return 0;
       }
     },
-
     async markAsRead(notificationId: string) {
       if (isBrowser) return { success: false };
       try {
         await pool.query('UPDATE notifications SET is_read = true WHERE id = $1', [notificationId]);
         return { success: true };
       } catch (error) {
-        console.error('Error marking notification as read:', error);
         return { success: false };
       }
     },
-
     async markAllAsRead(userId: string) {
       if (isBrowser) return { success: false };
       try {
         await pool.query('UPDATE notifications SET is_read = true WHERE user_id = $1', [userId]);
         return { success: true };
       } catch (error) {
-        console.error('Error marking all notifications as read:', error);
         return { success: false };
       }
     }

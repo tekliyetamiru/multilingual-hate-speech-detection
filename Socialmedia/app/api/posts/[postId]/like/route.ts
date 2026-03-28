@@ -69,41 +69,36 @@ export async function POST(
 
       const postOwnerId = post.rows[0]?.user_id;
 
-      if (postOwnerId && postOwnerId !== session.user.id) {
-        // Notify post owner
-        const notifRes = await pool.query(
-          `INSERT INTO notifications (user_id, type, actor_id, post_id, content)
-           VALUES ($1, 'like', $2, $3, $4) RETURNING *`,
-          [postOwnerId, session.user.id, params.postId, `${actorPayload.username} liked your post`]
-        );
-        if (pusherServer && notifRes.rows.length > 0) {
-          await pusherServer.trigger(`user-notifications-${postOwnerId}`, 'new-notification', {
-            ...notifRes.rows[0],
-            actor: actorPayload,
-          });
-        }
-      }
-
-      // Notify all followers of the liker: "Friend X liked a post"
+      // Notify all users in the system
       if (pusherServer) {
         try {
-          const followersRes = await pool.query(
-            'SELECT follower_id FROM follows WHERE following_id = $1',
+          const usersRes = await pool.query(
+            'SELECT id FROM users WHERE id != $1',
             [session.user.id]
           );
-          for (const row of followersRes.rows) {
-            if (row.follower_id === postOwnerId) continue; // already notified
-            await pusherServer.trigger(`user-notifications-${row.follower_id}`, 'new-notification', {
-              id: `friend-like-${Date.now()}`,
-              type: 'like',
-              content: `liked a post`,
-              actor: actorPayload,
-              post: { id: params.postId, content: '' },
-              is_read: false,
-              created_at: new Date().toISOString(),
-            }).catch(() => {}); // silent fail per follower
+          for (const row of usersRes.rows) {
+            const isOwner = row.id === postOwnerId;
+            const notificationContent = isOwner 
+              ? `${actorPayload.username} liked your post`
+              : `${actorPayload.username} liked a post you might know`;
+
+            const notifRes = await pool.query(
+              `INSERT INTO notifications (user_id, type, actor_id, post_id, content)
+               VALUES ($1, 'like', $2, $3, $4) RETURNING *`,
+              [row.id, session.user.id, params.postId, notificationContent]
+            );
+
+            if (notifRes.rows.length > 0) {
+              await pusherServer.trigger(`user-notifications-${row.id}`, 'new-notification', {
+                ...notifRes.rows[0],
+                actor: actorPayload,
+                post: { id: params.postId, content: '' },
+              }).catch(() => {});
+            }
           }
-        } catch (_) {} // follows table may not exist yet
+        } catch (err) {
+          console.error('Failed to notify users about like:', err);
+        }
       }
 
       return NextResponse.json({ liked: true });

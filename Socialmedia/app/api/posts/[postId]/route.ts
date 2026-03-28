@@ -3,6 +3,50 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
 import { pool } from '@/lib/db';
 
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { postId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const result = await pool.query(
+      `SELECT 
+        p.*,
+        u.username,
+        u.full_name,
+        u.avatar_url,
+        u.is_verified,
+        COALESCE(p.likes_count, 0) as likes_count,
+        COALESCE(p.comments_count, 0) as comments_count,
+        EXISTS(
+          SELECT 1 FROM reactions r
+          WHERE r.post_id = p.id AND r.user_id = $1 AND r.reaction_type = 'like'
+        ) as is_liked,
+        EXISTS(
+          SELECT 1 FROM saved_posts sp
+          WHERE sp.post_id = p.id AND sp.user_id = $1
+        ) as is_saved
+      FROM posts p
+      JOIN users u ON p.user_id = u.id
+      WHERE p.id = $2 AND p.is_archived = false`,
+      [session.user.id, params.postId]
+    );
+
+    if (result.rows.length === 0) {
+      return NextResponse.json({ error: 'Post not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    return NextResponse.json({ error: 'Failed to fetch post' }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   req: NextRequest,
   { params }: { params: { postId: string } }
