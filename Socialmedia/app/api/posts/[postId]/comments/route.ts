@@ -78,16 +78,20 @@ export async function POST(
     }
 
     const commentId = uuidv4();
-    const result = await pool.query(
-      `WITH new_comment AS (
-        INSERT INTO comments (id, post_id, user_id, content, parent_id, created_at)
-        VALUES ($1, $2, $3, $4, $5, NOW())
-        RETURNING *
-      )
-      UPDATE posts SET comments_count = comments_count + 1 WHERE id = $2
-      RETURNING (SELECT * FROM new_comment)`,
-      [commentId, params.postId, session.user.id, content, parentId]
+
+    const insertResult = await pool.query(
+      `INSERT INTO comments (id, post_id, user_id, content, parent_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       RETURNING *`,
+      [commentId, params.postId, session.user.id, content, parentId || null]
     );
+
+    await pool.query(
+      `UPDATE posts SET comments_count = comments_count + 1 WHERE id = $1`,
+      [params.postId]
+    );
+
+    const newCommentRow = insertResult.rows[0];
 
     // Get user details
     const userResult = await pool.query(
@@ -96,7 +100,7 @@ export async function POST(
     );
 
     const comment = {
-      ...result.rows[0],
+      ...newCommentRow,
       user: userResult.rows[0],
       is_liked: false,
       replies: [],
