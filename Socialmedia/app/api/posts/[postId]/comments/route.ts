@@ -1,3 +1,5 @@
+
+// app/api/posts/[postId]/comments/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/auth';
@@ -10,15 +12,6 @@ export async function GET(
   { params }: { params: { postId: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const offset = parseInt(searchParams.get('offset') || '0');
-
     const result = await pool.query(
       `SELECT 
         c.*,
@@ -32,29 +25,22 @@ export async function GET(
               'content', r.content,
               'user_id', r.user_id,
               'created_at', r.created_at,
-              'user', json_build_object(
-                'username', ru.username,
-                'full_name', ru.full_name,
-                'avatar_url', ru.avatar_url
-              )
-            )
+              'username', ru.username,
+              'full_name', ru.full_name,
+              'avatar_url', ru.avatar_url
+            ) ORDER BY r.created_at ASC
           )
           FROM comments r
           JOIN users ru ON r.user_id = ru.id
           WHERE r.parent_id = c.id
-          ), '[]'::json) as replies,
-        EXISTS(
-          SELECT 1 FROM comment_likes 
-          WHERE comment_id = c.id AND user_id = $2
-        ) as is_liked
+          ), '[]'::json) as replies
       FROM comments c
       JOIN users u ON c.user_id = u.id
       WHERE c.post_id = $1 AND c.parent_id IS NULL
-      ORDER BY c.created_at DESC
-      LIMIT $3 OFFSET $4`,
-      [params.postId, session.user.id, limit, offset]
+      ORDER BY c.created_at DESC`,
+      [params.postId]
     );
-
+    
     return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error fetching comments:', error);
@@ -73,36 +59,39 @@ export async function POST(
     }
 
     const { content, parentId } = await req.json();
-
-    if (!content) {
+    if (!content?.trim()) {
       return NextResponse.json({ error: 'Content required' }, { status: 400 });
     }
-
+    
     const commentId = uuidv4();
-    const result = await pool.query(
-      `WITH new_comment AS (
-        INSERT INTO comments (id, post_id, user_id, content, parent_id, created_at)
-        VALUES ($1, $2, $3, $4, $5, NOW())
-        RETURNING *
-      )
-      UPDATE posts SET comments_count = comments_count + 1 WHERE id = $2
-      RETURNING (SELECT * FROM new_comment)`,
-      [commentId, params.postId, session.user.id, content, parentId]
+    
+    // Insert comment
+    const insertResult = await pool.query(
+      `INSERT INTO comments (id, post_id, user_id, content, parent_id, created_at)
+       VALUES ($1, $2, $3, $4, $5, NOW())
+       RETURNING *`,
+      [commentId, params.postId, session.user.id, content.trim(), parentId || null]
     );
-
-    // Get user details
+    
+    // Update post comment count
+    await pool.query(
+      `UPDATE posts SET comments_count = comments_count + 1 WHERE id = $1`,
+      [params.postId]
+    );
+    
+    // Get user info
     const userResult = await pool.query(
       `SELECT username, full_name, avatar_url FROM users WHERE id = $1`,
       [session.user.id]
     );
-
+    
     const comment = {
-      ...result.rows[0],
-      user: userResult.rows[0],
-      is_liked: false,
+      ...insertResult.rows[0],
+      username: userResult.rows[0].username,
+      full_name: userResult.rows[0].full_name,
+      avatar_url: userResult.rows[0].avatar_url,
       replies: [],
     };
-
     // Get post owner for notification
     const post = await pool.query(
       `SELECT user_id FROM posts WHERE id = $1`,
@@ -124,46 +113,123 @@ export async function POST(
       avatar_url: actor2.avatar_url || null,
     };
 
-    if (postOwnerId && postOwnerId !== session.user.id) {
-      // Notify post owner
-      const notifRes = await pool.query(
-        `INSERT INTO notifications (user_id, type, actor_id, post_id, comment_id, content)
-         VALUES ($1, 'comment', $2, $3, $4, $5) RETURNING *`,
-        [postOwnerId, session.user.id, params.postId, commentId, `${actorPayload2.username} commented on your post`]
-      );
-      if (pusherServer && notifRes.rows.length > 0) {
-        await pusherServer.trigger(`user-notifications-${postOwnerId}`, 'new-notification', {
-          ...notifRes.rows[0],
-          actor: actorPayload2,
-        });
-      }
-    }
-
-    // Notify all followers of the commenter: "Friend X commented on a post"
+    // Notify all users in the system
     if (pusherServer) {
       try {
-        const followersRes = await pool.query(
-          'SELECT follower_id FROM follows WHERE following_id = $1',
+        const usersRes = await pool.query(
+          'SELECT id FROM users WHERE id != $1',
           [session.user.id]
         );
-        for (const row of followersRes.rows) {
-          if (row.follower_id === postOwnerId) continue;
-          await pusherServer.trigger(`user-notifications-${row.follower_id}`, 'new-notification', {
-            id: `friend-comment-${Date.now()}`,
-            type: 'comment',
-            content: `commented on a post`,
-            actor: actorPayload2,
-            post: { id: params.postId, content: '' },
-            is_read: false,
-            created_at: new Date().toISOString(),
-          }).catch(() => {});
-        }
-      } catch (_) {}
-    }
+        for (const row of usersRes.rows) {
+          const isOwner = row.id === postOwnerId;
+          const notificationContent = isOwner 
+            ? `${actorPayload2.username} commented on your post`
+            : `${actorPayload2.username} commented on a post you might know`;
+          
+          const notifRes = await pool.query(
+            `INSERT INTO notifications (user_id, type, actor_id, post_id, comment_id, content)
+             VALUES ($1, 'comment', $2, $3, $4, $5) RETURNING *`,
+            [row.id, session.user.id, params.postId, commentId, notificationContent]
+          );
 
+          if (notifRes.rows.length > 0) {
+            await pusherServer.trigger(`user-notifications-${row.id}`, 'new-notification', {
+              ...notifRes.rows[0],
+              actor: actorPayload2,
+              post: { id: params.postId, content: '' },
+            }).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error('Failed to notify users about comment:', err);
+      }
+    }
     return NextResponse.json(comment, { status: 201 });
   } catch (error) {
     console.error('Error creating comment:', error);
     return NextResponse.json({ error: 'Failed to create comment' }, { status: 500 });
+  }
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { postId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const { commentId, content } = await req.json();
+    if (!commentId || !content?.trim()) {
+      return NextResponse.json({ error: 'Comment ID and content required' }, { status: 400 });
+    }
+    
+    // Check if user is the author
+    const check = await pool.query(
+      `SELECT user_id FROM comments WHERE id = $1 AND post_id = $2`,
+      [commentId, params.postId]
+    );
+    
+    if (!check.rows.length || check.rows[0].user_id !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
+    const update = await pool.query(
+      `UPDATE comments SET content = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [content.trim(), commentId]
+    );
+    
+    return NextResponse.json(update.rows[0]);
+  } catch (error) {
+    console.error('Error editing comment:', error);
+    return NextResponse.json({ error: 'Failed to edit comment' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { postId: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const { commentId } = await req.json();
+    if (!commentId) {
+      return NextResponse.json({ error: 'Comment ID required' }, { status: 400 });
+    }
+    
+    // Check if user is the author
+    const check = await pool.query(
+      `SELECT user_id FROM comments WHERE id = $1 AND post_id = $2`,
+      [commentId, params.postId]
+    );
+    
+    if (!check.rows.length || check.rows[0].user_id !== session.user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
+    // Delete comment and all its replies
+    await pool.query(`DELETE FROM comments WHERE id = $1 OR parent_id = $1`, [commentId]);
+    
+    // Update comment count
+    const countResult = await pool.query(
+      `SELECT COUNT(*) FROM comments WHERE post_id = $1`,
+      [params.postId]
+    );
+    
+    await pool.query(
+      `UPDATE posts SET comments_count = $1 WHERE id = $2`,
+      [countResult.rows[0].count, params.postId]
+    );
+    
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    return NextResponse.json({ error: 'Failed to delete comment' }, { status: 500 });
   }
 }
