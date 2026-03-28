@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import CommentSection from '@/components/comments/CommentSection';
 
@@ -19,7 +19,10 @@ interface Post {
   comments_count: number;
 }
 
-export default function PostPage({ params }: { params: { id: string } }) {
+export default function PostPage() {
+  const params = useParams();
+  const id = params.id as string;
+  
   const { data: session, status } = useSession();
   const router = useRouter();
   const [post, setPost] = useState<Post | null>(null);
@@ -32,7 +35,7 @@ export default function PostPage({ params }: { params: { id: string } }) {
   const fetchPost = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch(`/api/posts/${params.id}?t=${Date.now()}`);
+      const response = await fetch(`/api/posts/${id}?t=${Date.now()}`);
       
       if (!response.ok) {
         if (response.status === 404) {
@@ -76,10 +79,10 @@ export default function PostPage({ params }: { params: { id: string } }) {
 
   // Fetch post on mount and when post ID changes
   useEffect(() => {
-    if (params.id && status === 'authenticated') {
+    if (id && status === 'authenticated') {
       fetchPost();
     }
-  }, [params.id, status, fetchPost]);
+  }, [id, status, fetchPost]);
 
   // Handle loading state
   if (status === 'loading' || loading) {
@@ -259,7 +262,7 @@ export default function PostPage({ params }: { params: { id: string } }) {
         {/* Comment Section */}
         <div id="comments-section">
           <CommentSection 
-            postId={params.id} 
+            postId={id} 
             onCommentCountChange={handleCommentCountChange}
           />
         </div>
