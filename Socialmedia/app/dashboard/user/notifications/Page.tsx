@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -50,6 +51,7 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [unreadCount, setUnreadCount] = useState(0);
+  const router = useRouter();
 
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -60,6 +62,7 @@ export default function NotificationsPage() {
     if (!session?.user?.id) return;
 
     // Subscribe to Pusher for real-time notifications
+    if (!pusherClient) return;
     const userChannel = pusherClient.subscribe(`user-notifications-${session.user.id}`);
 
     const handleNewNotification = (data: Notification) => {
@@ -74,9 +77,7 @@ export default function NotificationsPage() {
 
     return () => {
       userChannel.unbind("new-notification", handleNewNotification);
-      publicChannel.unbind("new-notification", handleNewNotification);
       userChannel.unsubscribe();
-      publicChannel.unsubscribe();
     };
   }, [session?.user?.id]);
 
@@ -211,12 +212,7 @@ export default function NotificationsPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={(val) => {
-          setActiveTab(val);
-          if (val === "unread" && unreadCount > 0) {
-            markAsRead("all-soft");
-          }
-        }} className="mb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="unread">
@@ -255,6 +251,11 @@ export default function NotificationsPage() {
                   onClick={() => {
                     if (!notification.is_read) {
                       markAsRead(notification.id);
+                    }
+                    if (notification.type === 'follow') {
+                      router.push(`/profile/${notification.actor.username}`);
+                    } else if (notification.post?.id) {
+                      router.push(`/post/${notification.post.id}`);
                     }
                   }}
                   className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition cursor-pointer ${!notification.is_read ? "border-l-4 border-primary" : ""

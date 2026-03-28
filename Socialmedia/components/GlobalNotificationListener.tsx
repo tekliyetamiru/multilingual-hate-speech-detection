@@ -48,7 +48,13 @@ function NotificationToast({
       transition={{ type: "spring", stiffness: 350, damping: 30 }}
       className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 w-[350px] pointer-events-auto border-l-4 border-primary cursor-pointer"
       onClick={() => {
-        router.push("/dashboard/user/notifications");
+        if (notification.type === 'follow') {
+          router.push(`/profile/${notification.actor.username}`);
+        } else if (notification.post?.id) {
+          router.push(`/post/${notification.post.id}`);
+        } else {
+          router.push("/dashboard/user/notifications");
+        }
         onClose();
       }}
     >

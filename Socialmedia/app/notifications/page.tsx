@@ -6,10 +6,12 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { Notification } from '@/types';
 
 export default function NotificationsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ['notifications'],
@@ -98,6 +100,11 @@ export default function NotificationsPage() {
               if (!notification.is_read) {
                 markAsRead(notification.id);
               }
+              if (notification.type === 'follow') {
+                router.push(`/profile/${notification.actor.username}`);
+              } else if (notification.post?.id) {
+                router.push(`/post/${notification.post.id}`);
+              }
             }}
             className={`bg-white dark:bg-gray-800 rounded-lg p-4 hover:shadow-md transition cursor-pointer ${
               !notification.is_read ? 'border-l-4 border-purple-600' : ''
@@ -141,11 +148,7 @@ export default function NotificationsPage() {
           </Button>
         </div>
 
-        <Tabs defaultValue="all" onValueChange={(val) => {
-          if (val === "unread" && unreadNotifications.length > 0) {
-            markAsRead("all-soft");
-          }
-        }}>
+        <Tabs defaultValue="all">
           <TabsList className="mb-6">
             <TabsTrigger value="all">All</TabsTrigger>
             <TabsTrigger value="unread">
