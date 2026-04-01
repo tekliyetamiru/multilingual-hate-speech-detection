@@ -31,12 +31,13 @@ export const authOptions: NextAuthOptions = {
             throw new Error('Invalid email or password');
           }
 
-          // Return user object with admin status
+          // Return user object with admin status and avatar
           return {
             id: user.id,
             email: user.email,
             name: user.full_name || user.username,
             username: user.username,
+            avatar_url: user.avatar_url,
             is_admin: user.is_admin || false,
           };
         } catch (error) {
@@ -47,18 +48,26 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.username = (user as any).username;
+        token.avatar_url = (user as any).avatar_url;
         token.is_admin = (user as any).is_admin;
       }
+      
+      // Handle manual session update
+      if (trigger === "update" && session?.avatar_url) {
+        token.avatar_url = session.avatar_url;
+      }
+      
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
         session.user.username = token.username as string;
+        session.user.avatar_url = token.avatar_url as string;
         session.user.is_admin = token.is_admin as boolean;
       }
       return session;

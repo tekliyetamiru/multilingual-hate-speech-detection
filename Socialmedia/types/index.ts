@@ -5,6 +5,8 @@ export interface User {
   full_name?: string;
   password_hash: string;
   bio?: string;
+  location?: string;
+  website?: string;
   avatar_url?: string;
   cover_url?: string;
   is_verified: boolean;

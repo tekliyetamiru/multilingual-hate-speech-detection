@@ -92,16 +92,157 @@ export const db = {
         return null;
       }
     },
-    async getFollowersCount(userId: string) { return 0; },
-    async getFollowingCount(userId: string) { return 0; },
-    async isFollowing(followerId: string, followingId: string) { return false; },
+    async updateAvatar(userId: string, avatarUrl: string) {
+      if (isBrowser) return { success: false };
+      try {
+        await pool.query('UPDATE users SET avatar_url = $1 WHERE id = $2', [avatarUrl, userId]);
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating avatar:', error);
+        return { success: false };
+      }
+    },
+    async updateCover(userId: string, coverUrl: string) {
+      if (isBrowser) return { success: false };
+      try {
+        await pool.query('UPDATE users SET cover_url = $1 WHERE id = $2', [coverUrl, userId]);
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating cover:', error);
+        return { success: false };
+      }
+    },
+    async getFollowersCount(userId: string) {
+      if (isBrowser) return 0;
+      try {
+        const result = await pool.query(
+          'SELECT COUNT(*) FROM follows WHERE following_id = $1',
+          [userId]
+        );
+        return parseInt(result.rows[0].count, 10);
+      } catch (error) {
+        return 0;
+      }
+    },
+    async getFollowingCount(userId: string) {
+      if (isBrowser) return 0;
+      try {
+        const result = await pool.query(
+          'SELECT COUNT(*) FROM follows WHERE follower_id = $1',
+          [userId]
+        );
+        return parseInt(result.rows[0].count, 10);
+      } catch (error) {
+        return 0;
+      }
+    },
+    async isFollowing(followerId: string, followingId: string) {
+      if (isBrowser || !followerId) return false;
+      try {
+        const result = await pool.query(
+          'SELECT 1 FROM follows WHERE follower_id = $1 AND following_id = $2',
+          [followerId, followingId]
+        );
+        return result.rows.length > 0;
+      } catch (error) {
+        return false;
+      }
+    },
     async isCloseFriend(userId: string, friendId: string) { return false; },
   },
 
   posts: {
-    async getFeed(userId: string, limit: number = 10, offset: number = 0) { return mockPosts; },
-    async getUserPosts(userId: string, viewerId: string | null, limit: number, offset: number) { return mockPosts; },
-    async getExploreFeed(limit: number = 10, offset: number = 0) { return mockPosts; },
+    async getFeed(userId: string, limit: number = 10, offset: number = 0) {
+      if (isBrowser) return [];
+      try {
+        const result = await pool.query(
+          `SELECT 
+            p.*,
+            u.username,
+            u.full_name,
+            u.avatar_url,
+            u.is_verified,
+            COALESCE(p.likes_count, 0) as likes_count,
+            COALESCE(p.comments_count, 0) as comments_count,
+            EXISTS(
+              SELECT 1 FROM reactions r
+              WHERE r.post_id = p.id AND r.user_id = $1 AND r.reaction_type = 'like'
+            ) as is_liked,
+            EXISTS(
+              SELECT 1 FROM saved_posts sp
+              WHERE sp.post_id = p.id AND sp.user_id = $1
+            ) as is_saved
+          FROM posts p
+          JOIN users u ON p.user_id = u.id
+          WHERE p.is_archived = false
+          ORDER BY p.created_at DESC
+          LIMIT $2 OFFSET $3`,
+          [userId, limit, offset]
+        );
+        return result.rows;
+      } catch (error) {
+        console.error('Error fetching feed:', error);
+        return [];
+      }
+    },
+    async getUserPosts(userId: string, viewerId: string | null, limit: number, offset: number) {
+      if (isBrowser) return [];
+      try {
+        const result = await pool.query(
+          `SELECT 
+            p.*,
+            u.username,
+            u.full_name,
+            u.avatar_url,
+            u.is_verified,
+            COALESCE(p.likes_count, 0) as likes_count,
+            COALESCE(p.comments_count, 0) as comments_count,
+            EXISTS(
+              SELECT 1 FROM reactions r
+              WHERE r.post_id = p.id AND r.user_id = $1 AND r.reaction_type = 'like'
+            ) as is_liked,
+            EXISTS(
+              SELECT 1 FROM saved_posts sp
+              WHERE sp.post_id = p.id AND sp.user_id = $1
+            ) as is_saved
+          FROM posts p
+          JOIN users u ON p.user_id = u.id
+          WHERE p.user_id = $2 AND p.is_archived = false
+          ORDER BY p.created_at DESC
+          LIMIT $3 OFFSET $4`,
+          [viewerId, userId, limit, offset]
+        );
+        return result.rows;
+      } catch (error) {
+        console.error('Error fetching user posts:', error);
+        return [];
+      }
+    },
+    async getExploreFeed(limit: number = 10, offset: number = 0) {
+      if (isBrowser) return [];
+      try {
+        const result = await pool.query(
+          `SELECT 
+            p.*,
+            u.username,
+            u.full_name,
+            u.avatar_url,
+            u.is_verified,
+            COALESCE(p.likes_count, 0) as likes_count,
+            COALESCE(p.comments_count, 0) as comments_count
+          FROM posts p
+          JOIN users u ON p.user_id = u.id
+          WHERE p.is_archived = false AND p.visibility = 'public'
+          ORDER BY p.created_at DESC
+          LIMIT $1 OFFSET $2`,
+          [limit, offset]
+        );
+        return result.rows;
+      } catch (error) {
+        console.error('Error fetching explore feed:', error);
+        return [];
+      }
+    },
     async like(postId: string, userId: string) { return { success: true }; },
     async unlike(postId: string, userId: string) { return { success: true }; },
     async addReaction(postId: string, userId: string, reactionType: string) { return { success: true }; },
