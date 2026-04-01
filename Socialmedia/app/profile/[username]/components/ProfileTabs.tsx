@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Grid3x3, Bookmark, Heart, Film, Image as ImageIcon, Video, FileText, Plus, MapPin, Calendar, Link2, Shield, Users, Pencil } from 'lucide-react';
+import { Grid3x3, Bookmark, Heart, Film, Image as ImageIcon, Video, FileText, Plus, MapPin, Calendar, Link2, Shield, Users, Pencil, MessageCircle } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Post } from '@/app/dashboard/user/components/Post';
 import { Button } from '@/components/ui/Button';
@@ -105,37 +105,46 @@ export function ProfileTabs({ userId, username, initialPosts, currentUserId }: P
                     className="relative aspect-square group cursor-pointer overflow-hidden rounded-lg"
                   >
                     {post.media_urls?.[0] ? (
-                      <img
-                        src={post.media_urls[0]}
-                        alt={post.content || 'Post'}
-                        className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
-                      />
+                      <div className="w-full h-full relative">
+                        {post.media_types?.[0] === 'video' ? (
+                          <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+                            <Video className="h-12 w-12 text-white/50" />
+                            <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1.5 backdrop-blur-sm">
+                               <Video className="h-4 w-4 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            src={post.media_urls[0]}
+                            alt={post.content || 'Post'}
+                            className="w-full h-full object-cover group-hover:scale-110 transition duration-300"
+                          />
+                        )}
+                      </div>
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-purple-400 to-pink-400 flex items-center justify-center">
-                        <FileText className="h-8 w-8 text-white" />
+                      <div className="w-full h-full bg-gradient-to-br from-purple-500 via-purple-600 to-pink-500 p-4 flex flex-col justify-between overflow-hidden group-hover:from-purple-600 group-hover:to-pink-600 transition-all duration-300">
+                        <p className="text-white text-xs md:text-sm font-bold line-clamp-6 leading-relaxed italic">
+                          "{post.content}"
+                        </p>
+                        <div className="flex justify-end">
+                           <FileText className="h-4 w-4 text-white/30" />
+                        </div>
                       </div>
                     )}
                     
                     {/* Hover Overlay */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
-                      <div className="flex items-center space-x-4 text-white">
-                        <div className="flex items-center">
-                          <Heart className="h-5 w-5 mr-1" />
-                          <span>{post.likes_count || 0}</span>
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center backdrop-blur-[2px]">
+                      <div className="flex items-center space-x-6 text-white scale-90 group-hover:scale-100 transition-transform duration-300">
+                        <div className="flex items-center font-bold">
+                          <Heart className="h-6 w-6 mr-2 fill-white" />
+                          <span className="text-lg">{post.likes_count || 0}</span>
                         </div>
-                        <div className="flex items-center">
-                          <Bookmark className="h-5 w-5 mr-1" />
-                          <span>{post.comments_count || 0}</span>
+                        <div className="flex items-center font-bold">
+                          <MessageCircle className="h-6 w-6 mr-2 fill-white" />
+                          <span className="text-lg">{post.comments_count || 0}</span>
                         </div>
                       </div>
                     </div>
-
-                    {/* Media Type Badge */}
-                    {post.media_types?.[0] === 'video' && (
-                      <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
-                        <Video className="h-4 w-4 text-white" />
-                      </div>
-                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>

@@ -212,6 +212,7 @@ export const db = {
           LIMIT $3 OFFSET $4`,
           [viewerId, userId, limit, offset]
         );
+        console.log(`[DEBUG] Fetched ${result.rows.length} posts for user_id ${userId} (viewer: ${viewerId})`);
         return result.rows;
       } catch (error) {
         console.error('Error fetching user posts:', error);
