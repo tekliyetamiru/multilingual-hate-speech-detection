@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { MessageCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -30,7 +31,8 @@ export function MessageButton({ userId }: MessageButtonProps) {
     <Button
       onClick={handleMessage}
       disabled={isLoading}
-      variant="outline"
+      variant="default" // Changed from outline to default to support gradient
+      className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white border-none shadow-sm transition transform active:scale-95"
     >
       {isLoading ? (
         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
