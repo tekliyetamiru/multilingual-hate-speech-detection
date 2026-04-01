@@ -1,32 +1,14 @@
-import { createUploadthing, type FileRouter } from "uploadthing/next";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth/auth";
+import {
+  generateUploadButton,
+  generateUploadDropzone,
+  generateUploader,
+} from "@uploadthing/react";
+import { generateReactHelpers } from "@uploadthing/react";
 
-const f = createUploadthing();
+import type { OurFileRouter } from "@/app/api/uploadthing/core";
 
-export const ourFileRouter = {
-  imageUploader: f({ image: { maxFileSize: "4MB", maxFileCount: 5 } })
-    .middleware(async () => {
-      const session = await getServerSession(authOptions);
-      if (!session) throw new Error("Unauthorized");
-      return { userId: session.user.id };
-    })
-    .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Upload complete for userId:", metadata.userId);
-      console.log("file url", file.url);
-      return { uploadedBy: metadata.userId };
-    }),
-    
-  videoUploader: f({ video: { maxFileSize: "16MB", maxFileCount: 3 } })
-    .middleware(async () => {
-      const session = await getServerSession(authOptions);
-      if (!session) throw new Error("Unauthorized");
-      return { userId: session.user.id };
-    })
-    .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Video upload complete for userId:", metadata.userId);
-      return { uploadedBy: metadata.userId };
-    }),
-} satisfies FileRouter;
+export const UploadButton = generateUploadButton<OurFileRouter>();
+export const UploadDropzone = generateUploadDropzone<OurFileRouter>();
+export const Uploader = generateUploader<OurFileRouter>();
 
-export type OurFileRouter = typeof ourFileRouter;
+export const { useUploadThing, uploadFiles } = generateReactHelpers<OurFileRouter>();
