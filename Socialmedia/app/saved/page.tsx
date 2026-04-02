@@ -1,18 +1,49 @@
 'use client';
 
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Bookmark, Grid3x3, List } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Bookmark, Grid3x3, List, Loader2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import { Post } from '@/app/dashboard/user/components/Post';
 
 export default function SavedPage() {
   const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSavedPosts = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/saved');
+        if (!res.ok) throw new Error('Failed to fetch saved posts');
+        const data = await res.json();
+        setSavedPosts(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Error loading saved posts:', err);
+        setError('Could not load saved posts. Please try again.');
+        toast.error('Could not load saved posts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSavedPosts();
+  }, []);
+
+  const handleSavedToggle = (postId: string, isSaved: boolean) => {
+    if (!isSaved) {
+      setSavedPosts((prev) => prev.filter((post) => post.id !== postId));
+      toast.success('Removed from saved');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between mb-6 gap-4">
           <h1 className="text-2xl font-bold flex items-center">
             <Bookmark className="h-6 w-6 mr-2" />
             Saved Posts
@@ -35,42 +66,25 @@ export default function SavedPage() {
           </div>
         </div>
 
-        <Tabs defaultValue="all" className="mb-6">
-          <TabsList>
-            <TabsTrigger value="all">All</TabsTrigger>
-            <TabsTrigger value="photos">Photos</TabsTrigger>
-            <TabsTrigger value="videos">Videos</TabsTrigger>
-            <TabsTrigger value="articles">Articles</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {view === 'grid' ? (
-          <div className="grid grid-cols-3 gap-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="aspect-square bg-gradient-to-br from-purple-400 to-pink-400 rounded-lg cursor-pointer hover:opacity-90 transition"
-              />
-            ))}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+          </div>
+        ) : error ? (
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center">
+            <p className="text-red-500 mb-3">{error}</p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
+        ) : savedPosts.length === 0 ? (
+          <div className="text-center py-24 bg-white dark:bg-gray-800 rounded-xl">
+            <Bookmark className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+            <h2 className="text-lg font-semibold mb-1">No saved posts yet</h2>
+            <p className="text-gray-500">Tap the bookmark icon on any post to save it here.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {[1, 2, 3].map((i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow flex items-center space-x-4"
-              >
-                <div className="w-16 h-16 bg-gradient-to-br from-purple-400 to-pink-400 rounded" />
-                <div className="flex-1">
-                  <h3 className="font-semibold">Saved Post {i}</h3>
-                  <p className="text-sm text-gray-500">Saved 2 days ago</p>
-                </div>
-                <Button variant="ghost" size="sm">Remove</Button>
-              </motion.div>
+          <div className={view === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4' : 'space-y-4'}>
+            {savedPosts.map((post) => (
+              <Post key={post.id} post={post} currentUserId={post.user_id} onSave={handleSavedToggle} />
             ))}
           </div>
         )}

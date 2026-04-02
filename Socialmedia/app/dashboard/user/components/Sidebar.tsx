@@ -49,6 +49,16 @@ export function Sidebar({ user }: SidebarProps) {
     enabled: !!user,
   });
 
+  const { data: savedCount = 0 } = useQuery({
+    queryKey: ['savedCount'],
+    queryFn: async () => {
+      const res = await fetch('/api/saved/count');
+      const data = await res.json();
+      return data.count || 0;
+    },
+    enabled: !!user,
+  });
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sticky top-20">
       {/* User Info */}
@@ -82,6 +92,11 @@ export function Sidebar({ user }: SidebarProps) {
               {item.name === "Notifications" && unreadCount > 0 && (
                 <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full shrink-0">
                   {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
+              {item.name === 'Saved' && savedCount > 0 && (
+                <span className="bg-purple-600 text-white text-xs px-2 py-0.5 rounded-full shrink-0">
+                  {savedCount > 99 ? '99+' : savedCount}
                 </span>
               )}
             </Link>

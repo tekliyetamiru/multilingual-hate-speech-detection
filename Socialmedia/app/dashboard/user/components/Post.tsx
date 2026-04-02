@@ -40,10 +40,11 @@ interface PostProps {
   post: any;
   currentUserId: string;
   onUpdate?: (post: any) => void;
+  onSave?: (postId: string, saved: boolean) => void;
   onDelete?: (postId: string) => void;
 }
 
-export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
+export function Post({ post, currentUserId, onUpdate, onSave, onDelete }: PostProps) {
   const [isLiked, setIsLiked] = useState(post.is_liked);
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [isSaved, setIsSaved] = useState(post.is_saved);
@@ -110,6 +111,7 @@ export function Post({ post, currentUserId, onUpdate, onDelete }: PostProps) {
 
       const data = await res.json();
       setIsSaved(data.saved);
+      onSave?.(post.id, data.saved);
       toast.success(data.saved ? "Post saved!" : "Post removed from saved");
     } catch (error) {
       toast.error("Failed to save post");
