@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toxic Message Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f9;
+            --container-bg: #fff;
+            --text-color: #333;
+            --border-color: #ddd;
+            --danger-bg: #ffebee;
+            --danger-text: #c62828;
+            --primary: #1976d2;
+            --header-bg: #f8f9fa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background-color: var(--container-bg);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        button.refresh-btn {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button.refresh-btn:hover {
+            background-color: #1565c0;
+        }
+
+        .toggle-container {
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: var(--header-bg);
+            font-weight: 600;
+        }
+
+        .toxic-label {
+            background-color: var(--danger-bg);
+            color: var(--danger-text);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .message-cell {
+            max-width: 300px;
+            word-wrap: break-word;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #777;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🛡️ Deleted Messages Dashboard</h1>
+        <div class="controls">
+            <div class="toggle-container">
+                <input type="checkbox" id="autoRefresh" checked>
+                <label for="autoRefresh">Auto-refresh (5s)</label>
+            </div>
+            <button class="refresh-btn" onclick="fetchMessages()">Refresh Now</button>
+        </div>
+    </div>
+
+    <table id="messagesTable">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Username</th>
+                <th>Message text</th>
+                <th>Category</th>
+                <th>Confidence</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <tr>
+                <td colspan="5" class="empty-state">Loading messages...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const API_URL = "http://localhost:8000/messages";
+    let autoRefreshInterval = null;
+
+    async function fetchMessages() {
+        try {
+            const response = await fetch(API_URL);
+            if (!response.ok) throw new Error("Network response was not ok");
+            
+            const messages = await response.json();
+            renderTable(messages);
+        } catch (error) {
+            console.error("Error fetching messages:", error);
+            document.getElementById('tableBody').innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state" style="color: var(--danger-text);">
+                        Connection error. Make sure FastAPI is running on http://localhost:8000
+                    </td>
+                </tr>
+            `;
+        }
+    }
+
+    function renderTable(messages) {
+        const tbody = document.getElementById('tableBody');
+        
+        if (messages.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">No deleted messages yet. Clean chat! ✨</td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        
+        messages.forEach(msg => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${msg.timestamp}</td>
+                <td><strong>@${msg.user}</strong></td>
+                <td class="message-cell">"${escapeHtml(msg.message)}"</td>
+                <td><span class="toxic-label">${msg.label}</span></td>
+                <td>${(msg.confidence * 100).toFixed(1)}%</td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    function escapeHtml(unsafe) {
+        return (unsafe || '').toString()
+             .replace(/&/g, "&amp;")
+             .replace(/</g, "&lt;")
+             .replace(/>/g, "&gt;")
+             .replace(/"/g, "&quot;")
+             .replace(/'/g, "&#039;");
+    }
+
+    function setupAutoRefresh() {
+        const checkbox = document.getElementById('autoRefresh');
+        
+        if (checkbox.checked) {
+            autoRefreshInterval = setInterval(fetchMessages, 5000);
+        }
+
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                fetchMessages();
+                autoRefreshInterval = setInterval(fetchMessages, 5000);
+            } else {
+                clearInterval(autoRefreshInterval);
+            }
+        });
+    }
+
+    // Initial load
+    fetchMessages();
+    setupAutoRefresh();
+</script>
+
+</body>
+</html>
