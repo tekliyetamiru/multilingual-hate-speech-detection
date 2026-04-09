@@ -11,13 +11,13 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'react-hot-toast';
-import { 
-  User, 
-  Mail, 
-  Lock, 
-  Calendar, 
-  CheckCircle, 
-  ArrowRight, 
+import {
+  User,
+  Mail,
+  Lock,
+  Calendar,
+  CheckCircle,
+  ArrowRight,
   ArrowLeft,
   Sparkles,
   Shield,
@@ -106,7 +106,7 @@ export default function SignupPage() {
     const lengthValid = password.length >= 8;
 
     const strength = [hasUpperCase, hasLowerCase, hasNumbers, hasSpecialChar, lengthValid].filter(Boolean).length;
-    
+
     if (strength <= 2) return { text: 'Weak', color: 'bg-red-500', width: 33 };
     if (strength <= 4) return { text: 'Medium', color: 'bg-yellow-500', width: 66 };
     return { text: 'Strong', color: 'bg-green-500', width: 100 };
@@ -137,357 +137,323 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
-      {/* Animated Background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-40 left-40 w-80 h-80 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
-        
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]"></div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-[#9b4dca] via-[#da70d6] to-[#f37eae]">
+      {/* Animated Background Blobs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-purple-500 flex-shrink-0 rounded-full mix-blend-screen filter blur-[120px] opacity-40 animate-blob"></div>
+        <div className="absolute top-1/4 right-0 w-[500px] h-[500px] bg-pink-400 flex-shrink-0 rounded-full mix-blend-screen filter blur-[100px] opacity-40 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-40 left-1/4 w-[700px] h-[700px] bg-violet-600 flex-shrink-0 rounded-full mix-blend-screen filter blur-[150px] opacity-40 animate-blob animation-delay-4000"></div>
       </div>
 
       {/* Floating Elements */}
-      <div className="absolute top-20 left-20 text-white/10">
-        <Sparkles className="w-16 h-16 animate-spin-slow" />
+      <div className="absolute top-1/2 left-[15%] -translate-y-1/2 -translate-x-1/2 text-white/10 pointer-events-none">
+        <Globe className="w-64 h-64 animate-float" />
       </div>
-      <div className="absolute bottom-20 right-20 text-white/10">
-        <Shield className="w-20 h-20 animate-bounce-slow" />
-      </div>
-      <div className="absolute top-40 right-40 text-white/10">
-        <Zap className="w-12 h-12 animate-pulse-slow" />
-      </div>
-      <div className="absolute bottom-40 left-40 text-white/10">
-        <Globe className="w-24 h-24 animate-float" />
+      <div className="absolute top-1/4 left-1/3 text-white/10 pointer-events-none">
+        <Sparkles className="w-12 h-12 animate-pulse-slow" />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8 }}
-        className="max-w-md w-full relative z-10 px-4"
-      >
-        {/* Logo/Brand */}
-        <motion.div 
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-          className="text-center mb-8"
+      <div className="max-w-6xl w-full flex flex-col md:flex-row gap-8 lg:gap-20 relative z-10 px-6 py-6 mt-8">
+        {/* Left Side: Brand */}
+        <motion.div
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, type: "spring" }}
+          className="flex-1 text-center md:text-left flex flex-col md:items-start items-center"
         >
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 shadow-2xl mb-4">
-            <span className="text-3xl font-bold text-white">S</span>
+          <div className="inline-flex items-center justify-center w-20 h-20 lg:w-24 lg:h-24 rounded-full bg-gradient-to-tr from-[#c471ed] to-[#f64f59] shadow-xl mb-6">
+            <span className="text-4xl font-bold text-white">S</span>
           </div>
-          <h1 className="text-4xl font-bold text-white mb-2">SocialFlow</h1>
-          <p className="text-white/80">Join the community</p>
+          <h1 className="text-5xl lg:text-7xl font-extrabold text-black mb-2 tracking-tight">SocialFlow</h1>
+          <p className="text-xl lg:text-3xl text-black/70 font-medium">Join the community</p>
         </motion.div>
 
-        <Card className="p-8 backdrop-blur-xl bg-white/10 border-white/20 shadow-2xl">
-          <div className="text-center mb-8">
-            <motion.h2 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="text-3xl font-bold text-white mb-2"
-            >
-              Create Account
-            </motion.h2>
-            <motion.p 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-white/70"
-            >
-              Start your journey with us
-            </motion.p>
-          </div>
-
-          {/* Modern Progress Steps */}
-          <div className="relative mb-10">
-            <div className="absolute top-1/2 left-0 w-full h-0.5 bg-white/20 -translate-y-1/2"></div>
-            <div className="relative flex justify-between">
-              {[1, 2, 3].map((s) => (
-                <motion.div
-                  key={s}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.2 + s * 0.1 }}
-                  className={`relative z-10 flex flex-col items-center`}
-                >
-                  <motion.div
-                    animate={{
-                      scale: step === s ? 1.2 : 1,
-                      backgroundColor: step >= s ? '#8b5cf6' : 'rgba(255,255,255,0.2)'
-                    }}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-sm border-2 ${
-                      step >= s ? 'border-purple-400' : 'border-white/20'
-                    }`}
-                  >
-                    {s < step ? (
-                      <CheckCircle className="h-6 w-6 text-white" />
-                    ) : (
-                      <span className="text-white font-semibold">{s}</span>
-                    )}
-                  </motion.div>
-                  <span className="absolute -bottom-6 text-xs text-white/60 whitespace-nowrap">
-                    {s === 1 ? 'Basic Info' : s === 2 ? 'Security' : 'Details'}
-                  </span>
-                </motion.div>
-              ))}
+        {/* Right Side: Login Card */}
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, type: "spring", delay: 0.2 }}
+          className="flex-1 w-full max-w-md"
+        >
+          <Card className="bg-black rounded-[2rem] p-6 lg:p-12 shadow-2xl border border-white/5 relative overflow-hidden">
+            {/* Dark watermark icons inside the card */}
+            <div className="absolute top-8 right-6 text-white/5 pointer-events-none">
+              <Zap className="w-16 h-16 -rotate-12" />
             </div>
-          </div>
+            <div className="absolute -bottom-4 -right-4 text-white/5 pointer-events-none">
+              <Shield className="w-24 h-24" />
+            </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <AnimatePresence mode="wait" custom={direction}>
-              <motion.div
-                key={step}
-                custom={direction}
-                variants={stepVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  x: { type: "spring", stiffness: 300, damping: 30 },
-                  opacity: { duration: 0.2 }
-                }}
-                className="space-y-4"
-              >
-                {step === 1 && (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                    >
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Username
-                      </label>
-                      <div className="relative group">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-purple-400 transition-colors" />
-                        <Input
-                          {...register('username')}
-                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 transition-all"
-                          placeholder="johndoe"
-                          error={errors.username?.message}
-                        />
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Email Address
-                      </label>
-                      <div className="relative group">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-purple-400 transition-colors" />
-                        <Input
-                          {...register('email')}
-                          type="email"
-                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 transition-all"
-                          placeholder="you@example.com"
-                          error={errors.email?.message}
-                        />
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.3 }}
-                    >
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Full Name
-                      </label>
-                      <Input
-                        {...register('fullName')}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 transition-all"
-                        placeholder="John Doe"
-                        error={errors.fullName?.message}
-                      />
-                    </motion.div>
-                  </>
-                )}
-
-                {step === 2 && (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                    >
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Password
-                      </label>
-                      <div className="relative group">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-purple-400 transition-colors" />
-                        <Input
-                          {...register('password')}
-                          type="password"
-                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 transition-all"
-                          placeholder="••••••••"
-                          error={errors.password?.message}
-                        />
-                      </div>
-                      {password && (
-                        <motion.div
-                          initial={{ opacity: 0, y: -10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          className="mt-2"
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-xs text-white/60">Password strength:</span>
-                            <span className={`text-xs font-medium ${
-                              passwordStrength().text === 'Weak' ? 'text-red-400' :
-                              passwordStrength().text === 'Medium' ? 'text-yellow-400' :
-                              'text-green-400'
-                            }`}>
-                              {passwordStrength().text}
-                            </span>
-                          </div>
-                          <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${passwordStrength().width}%` }}
-                              transition={{ duration: 0.3 }}
-                              className={`h-full rounded-full ${passwordStrength().color}`}
-                            />
-                          </div>
-                        </motion.div>
-                      )}
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Confirm Password
-                      </label>
-                      <Input
-                        {...register('confirmPassword')}
-                        type="password"
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 transition-all"
-                        placeholder="••••••••"
-                        error={errors.confirmPassword?.message}
-                      />
-                    </motion.div>
-                  </>
-                )}
-
-                {step === 3 && (
-                  <>
-                    <motion.div
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.1 }}
-                    >
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Date of Birth
-                      </label>
-                      <div className="relative group">
-                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-white/40 group-focus-within:text-purple-400 transition-colors" />
-                        <Input
-                          {...register('dateOfBirth')}
-                          type="date"
-                          className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:border-purple-400 focus:ring-purple-400/20 transition-all [color-scheme:dark]"
-                          max={new Date().toISOString().split('T')[0]}
-                          error={errors.dateOfBirth?.message}
-                        />
-                      </div>
-                    </motion.div>
-
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: 0.2 }}
-                      className="flex items-center space-x-3 p-4 rounded-lg bg-white/5 border border-white/10"
-                    >
-                      <input
-                        {...register('terms')}
-                        type="checkbox"
-                        id="terms"
-                        className="w-4 h-4 rounded border-white/20 bg-white/5 text-purple-600 focus:ring-purple-500/20 focus:ring-offset-0"
-                      />
-                      <label htmlFor="terms" className="text-sm text-white/80">
-                        I agree to the{' '}
-                        <Link href="/terms" className="text-purple-400 hover:text-purple-300 underline decoration-purple-400/30">
-                          Terms of Service
-                        </Link>
-                        {' '}and{' '}
-                        <Link href="/privacy" className="text-purple-400 hover:text-purple-300 underline decoration-purple-400/30">
-                          Privacy Policy
-                        </Link>
-                      </label>
-                    </motion.div>
-                    {errors.terms && (
-                      <motion.p
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="text-sm text-red-400"
-                      >
-                        {errors.terms.message}
-                      </motion.p>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Navigation Buttons */}
-            <div className="flex gap-3 pt-4">
-              {step > 1 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => paginate(-1)}
-                  className="flex-1 bg-white/10 border-white/20 text-white hover:bg-white/20 transition-all"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back
-                </Button>
-              )}
-              
-              {step < 3 ? (
-                <Button
-                  type="button"
-                  onClick={() => paginate(1)}
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 shadow-lg shadow-purple-500/25"
-                >
-                  Next Step
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button
-                  type="submit"
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0 shadow-lg shadow-purple-500/25"
-                  isLoading={isLoading}
+            <div className="relative z-10">
+              <div className="text-center mb-6">
+                <motion.h2
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-2xl font-bold text-white mb-1"
                 >
                   Create Account
-                </Button>
-              )}
-            </div>
-          </form>
+                </motion.h2>
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                  className="text-white/60 text-sm"
+                >
+                  Start your journey with us
+                </motion.p>
+              </div>
 
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="mt-8 text-center text-sm text-white/60"
-          >
-            Already have an account?{' '}
-            <Link
-              href="/login"
-              className="font-medium text-purple-400 hover:text-purple-300 transition-colors"
-            >
-              Sign in
-            </Link>
-          </motion.p>
-        </Card>
-      </motion.div>
+              {/* Modern Progress Steps */}
+              <div className="relative mb-10">
+                <div className="absolute top-1/2 left-0 w-full h-0.5 bg-white/10 -translate-y-1/2"></div>
+                <div className="relative flex justify-between">
+                  {[1, 2, 3].map((s) => (
+                    <motion.div
+                      key={s}
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.2 + s * 0.1 }}
+                      className={`relative z-10 flex flex-col items-center`}
+                    >
+                      <motion.div
+                        animate={{
+                          scale: step === s ? 1.1 : 1,
+                          backgroundColor: step >= s ? '#d946ef' : '#1b222d'
+                        }}
+                        className={`w-8 h-8 lg:w-10 lg:h-10 rounded-full flex items-center justify-center backdrop-blur-sm border-2 ${step >= s ? 'border-[#d946ef]' : 'border-white/10'
+                          } transition-colors`}
+                      >
+                        {s < step ? (
+                          <CheckCircle className="h-4 w-4 lg:h-5 lg:w-5 text-white" />
+                        ) : (
+                          <span className="text-white font-semibold text-xs lg:text-sm">{s}</span>
+                        )}
+                      </motion.div>
+                      <span className="absolute -bottom-5 text-[10px] text-white/50 whitespace-nowrap">
+                        {s === 1 ? 'Basic Info' : s === 2 ? 'Security' : 'Details'}
+                      </span>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <AnimatePresence mode="wait" custom={direction}>
+                  <motion.div
+                    key={step}
+                    custom={direction}
+                    variants={stepVariants}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{
+                      x: { type: "spring", stiffness: 300, damping: 30 },
+                      opacity: { duration: 0.2 }
+                    }}
+                    className="space-y-3"
+                  >
+                    {step === 1 && (
+                      <div className="space-y-3">
+                        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Username
+                          </label>
+                          <Input
+                            {...register('username')}
+                            className="w-full rounded-full !bg-gray-800 border-0 text-white px-5 h-11 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-600 focus:bg-[#252d3a] transition-all text-sm"
+                            placeholder="johndoe"
+                            error={errors.username?.message}
+                          />
+                        </motion.div>
+
+                        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Email Address
+                          </label>
+                          <Input
+                            {...register('email')}
+                            type="email"
+                            className="w-full rounded-full !bg-gray-800 border-0 text-white px-5 h-11 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-600 focus:bg-[#252d3a] transition-all text-sm"
+                            placeholder="you@example.com"
+                            error={errors.email?.message}
+                          />
+                        </motion.div>
+
+                        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Full Name
+                          </label>
+                          <Input
+                            {...register('fullName')}
+                            className="w-full rounded-full !bg-gray-800 border-0 text-white px-5 h-11 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-600 focus:bg-[#252d3a] transition-all text-sm"
+                            placeholder="John Doe"
+                            error={errors.fullName?.message}
+                          />
+                        </motion.div>
+                      </div>
+                    )}
+
+                    {step === 2 && (
+                      <div className="space-y-3">
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Password
+                          </label>
+                          <Input
+                            {...register('password')}
+                            type="password"
+                            className="w-full rounded-full !bg-gray-800 border-0 text-white px-5 h-11 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-600 focus:bg-[#252d3a] transition-all text-sm"
+                            placeholder="••••••••"
+                            error={errors.password?.message}
+                          />
+                          {password && (
+                            <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} className="mt-2 px-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] text-white/50">Password strength:</span>
+                                <span className={`text-[10px] font-medium ${passwordStrength().text === 'Weak' ? 'text-red-400' :
+                                  passwordStrength().text === 'Medium' ? 'text-yellow-400' :
+                                    'text-green-400'
+                                  }`}>
+                                  {passwordStrength().text}
+                                </span>
+                              </div>
+                              <div className="w-full h-1 !bg-gray-800 rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${passwordStrength().width}%` }}
+                                  transition={{ duration: 0.3 }}
+                                  className={`h-full rounded-full ${passwordStrength().color}`}
+                                />
+                              </div>
+                            </motion.div>
+                          )}
+                        </motion.div>
+
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }}>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Confirm Password
+                          </label>
+                          <Input
+                            {...register('confirmPassword')}
+                            type="password"
+                            className="w-full rounded-full !bg-gray-800 border-0 text-white px-5 h-11 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-600 focus:bg-[#252d3a] transition-all text-sm"
+                            placeholder="••••••••"
+                            error={errors.confirmPassword?.message}
+                          />
+                        </motion.div>
+                      </div>
+                    )}
+
+                    {step === 3 && (
+                      <div className="space-y-3">
+                        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
+                          <label className="block text-xs font-medium text-white/80 mb-1">
+                            Date of Birth
+                          </label>
+                          <Input
+                            {...register('dateOfBirth')}
+                            type="date"
+                            className="w-full rounded-full !bg-gray-800 border-0 text-white px-5 h-11 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-600 focus:bg-[#252d3a] transition-all text-sm [color-scheme:dark]"
+                            max={new Date().toISOString().split('T')[0]}
+                            error={errors.dateOfBirth?.message}
+                          />
+                        </motion.div>
+
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                          className="flex flex-col space-y-1 mt-1 pt-1"
+                        >
+                          <div className="flex items-center space-x-3 p-3 rounded-xl bg-[#1b222d] border border-transparent">
+                            <input
+                              {...register('terms')}
+                              type="checkbox"
+                              id="terms"
+                              className="w-3.5 h-3.5 rounded border-white/20 bg-black text-[#d946ef] focus:ring-[#d946ef]/50 focus:ring-offset-0"
+                            />
+                            <label htmlFor="terms" className="text-xs text-white/70 leading-tight">
+                              I agree to the{' '}
+                              <Link href="/terms" className="text-pink-400 hover:text-pink-300 underline decoration-pink-400/30">
+                                Terms
+                              </Link>
+                              {' '}and{' '}
+                              <Link href="/privacy" className="text-pink-400 hover:text-pink-300 underline decoration-pink-400/30">
+                                Privacy Policy
+                              </Link>
+                            </label>
+                          </div>
+                          {errors.terms && (
+                            <motion.p
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="text-[10px] text-red-400 px-3 mt-1"
+                            >
+                              {errors.terms.message}
+                            </motion.p>
+                          )}
+                        </motion.div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+
+                {/* Navigation Buttons */}
+                <div className="flex gap-3 pt-4">
+                  {step > 1 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => paginate(-1)}
+                      className="flex-1 rounded-full bg-transparent border border-white/20 text-white hover:bg-white/10 h-11 font-semibold text-sm transition-colors"
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back
+                    </Button>
+                  )}
+
+                  {step < 3 ? (
+                    <Button
+                      type="button"
+                      onClick={() => paginate(1)}
+                      className="flex-1 rounded-full bg-gradient-to-r from-[#d946ef] to-[#f43f5e] hover:opacity-90 text-white text-sm font-semibold border-0 h-11 transition-opacity shadow-lg shadow-pink-500/20"
+                    >
+                      Next Step
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      className="flex-1 rounded-full bg-gradient-to-r from-[#d946ef] to-[#f43f5e] hover:opacity-90 text-white text-sm font-semibold border-0 h-11 transition-opacity shadow-lg shadow-pink-500/20"
+                      isLoading={isLoading}
+                    >
+                      Create Account
+                    </Button>
+                  )}
+                </div>
+              </form>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="mt-5 text-center"
+              >
+                <p className="text-xs text-white/50">
+                  Already have an account?{' '}
+                  <Link
+                    href="/login"
+                    className="font-semibold text-white hover:text-pink-300 transition-colors"
+                  >
+                    Sign in
+                  </Link>
+                </p>
+              </motion.div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
 
       <style jsx>{`
         @keyframes blob {
@@ -496,7 +462,7 @@ export default function SignupPage() {
           66% { transform: translate(-20px, 20px) scale(0.9); }
         }
         .animate-blob {
-          animation: blob 7s infinite;
+          animation: blob 10s infinite alternate;
         }
         .animation-delay-2000 {
           animation-delay: 2s;
@@ -504,33 +470,19 @@ export default function SignupPage() {
         .animation-delay-4000 {
           animation-delay: 4s;
         }
-        @keyframes spin-slow {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin-slow {
-          animation: spin-slow 20s linear infinite;
-        }
-        @keyframes bounce-slow {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-20px); }
-        }
-        .animate-bounce-slow {
-          animation: bounce-slow 3s ease-in-out infinite;
-        }
-        @keyframes pulse-slow {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.8; }
-        }
-        .animate-pulse-slow {
-          animation: pulse-slow 4s ease-in-out infinite;
-        }
         @keyframes float {
           0%, 100% { transform: translateY(0) rotate(0deg); }
-          50% { transform: translateY(-30px) rotate(10deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
         }
         .animate-float {
-          animation: float 6s ease-in-out infinite;
+          animation: float 8s ease-in-out infinite;
+        }
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.1; transform: scale(1); }
+          50% { opacity: 0.3; transform: scale(1.05); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 6s ease-in-out infinite;
         }
       `}</style>
     </div>
