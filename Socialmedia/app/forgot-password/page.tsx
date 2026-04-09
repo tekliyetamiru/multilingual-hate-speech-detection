@@ -4,58 +4,48 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'react-hot-toast';
 import {
-  Eye,
-  EyeOff,
   Sparkles,
   Shield,
   Zap,
-  Globe
+  Globe,
+  ArrowLeft,
+  MailCheck
 } from 'lucide-react';
 
-const loginSchema = z.object({
+const forgotPasswordSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+type ForgotPasswordForm = z.infer<typeof forgotPasswordSchema>;
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSent, setIsSent] = useState(false);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+  } = useForm<ForgotPasswordForm>({
+    resolver: zodResolver(forgotPasswordSchema),
   });
 
-  const onSubmit = async (data: LoginForm) => {
+  const onSubmit = async (data: ForgotPasswordForm) => {
     setIsLoading(true);
     try {
-      const result = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        toast.error('Invalid email or password');
-      } else {
-        toast.success('Logged in successfully!');
-        window.location.href = '/';
-      }
+      // Simulating API call as we are instructed not to touch the database
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      setIsSent(true);
+      toast.success('Password reset link sent to your email!');
     } catch (error) {
       toast.error('An error occurred. Please try again.');
     } finally {
@@ -92,17 +82,17 @@ export default function LoginPage() {
             <span className="text-4xl font-bold text-white">S</span>
           </div>
           <h1 className="text-6xl lg:text-7xl font-extrabold text-black mb-4 tracking-tight">SocialFlow</h1>
-          <p className="text-2xl lg:text-3xl text-black/70 font-medium">Join the community</p>
+          <p className="text-2xl lg:text-3xl text-black/70 font-medium">Recover your account</p>
         </motion.div>
 
-        {/* Right Side: Login Card */}
+        {/* Right Side: Forgot Password Card */}
         <motion.div
           initial={{ opacity: 0, x: 40 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.8, type: "spring", delay: 0.2 }}
           className="flex-1 w-full max-w-md"
         >
-          <Card className="bg-white rounded-[2rem] p-8 lg:p-12 shadow-2xl border border-white/5 relative">
+          <Card className="bg-white rounded-[2rem] p-8 lg:p-12 shadow-2xl border border-white/5 relative overflow-hidden">
             {/* Dark watermark icons inside the card */}
             <div className="absolute top-12 right-6 text-white/5 pointer-events-none">
               <Zap className="w-20 h-20 -rotate-12" />
@@ -112,74 +102,75 @@ export default function LoginPage() {
             </div>
 
             <div className="relative z-10">
-              <h2 className="text-white text-lg font-bold mb-8">Log into SocialFlow</h2>
-
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                <div>
-                  <label className="block text-gray-500 text-sm font-medium mb-2 ml-4">
-                    Email Address
-                  </label>
-                  <Input
-                    {...register('email')}
-                    type="email"
-                    className="w-full rounded-full !bg-gray-800 border-0 text-white px-6 h-14 placeholder:text-white"
-                    placeholder="you@example.com"
-                    error={errors.email?.message}
-                  />
-                </div>
-
-                <div className="relative">
-                  <label className="block text-gray-500 text-sm font-medium mb-2 ml-4">
-                    Password
-                  </label>
-                  <Input
-                    {...register('password')}
-                    type={showPassword ? 'text' : 'password'}
-                    className="w-full rounded-full !bg-gray-800 border-0 text-white px-6 h-14 placeholder:text-gray-400 focus:ring-1 focus:ring-gray-600 focus:bg-[#252d3a] transition-all"
-                    placeholder="••••••••"
-                    error={errors.password?.message}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-6 top-1/2 mt-4 transform -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+              <Link href="/login" className="inline-flex items-center text-gray-500 hover:text-white transition-colors mb-6 text-sm font-medium">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to login
+              </Link>
+              
+              <AnimatePresence mode="wait">
+                {!isSent ? (
+                  <motion.div
+                    key="form"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3 }}
                   >
-                    {showPassword ? (
-                      <EyeOff className="h-5 w-5" />
-                    ) : (
-                      <Eye className="h-5 w-5" />
-                    )}
-                  </button>
-                </div>
+                    <h2 className="text-white text-xl font-bold mb-2">Forgot Password?</h2>
+                    <p className="text-gray-500 text-sm mb-8">
+                      No worries, we'll send you reset instructions.
+                    </p>
 
-                <Button
-                  type="submit"
-                  className="w-full rounded-full bg-gradient-to-r from-[#d946ef] to-[#f43f5e] hover:opacity-90 text-white text-base font-semibold border-0 h-14 mt-4 transition-opacity"
-                  isLoading={isLoading}
-                >
-                  Log in
-                </Button>
-              </form>
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                      <div>
+                        <label className="block text-gray-500 text-sm font-medium mb-2 ml-4">
+                          Email Address
+                        </label>
+                        <Input
+                          {...register('email')}
+                          type="email"
+                          className="w-full rounded-full !bg-gray-800 border-0 text-white px-6 h-14 placeholder:text-gray-400"
+                          placeholder="you@example.com"
+                          error={errors.email?.message}
+                        />
+                      </div>
 
-              <div className="mt-6 mb-8 text-center pt-2">
-                <Link
-                  href="/forgot-password"
-                  className="text-white text-sm font-semibold hover:text-pink-300 transition-colors"
-                >
-                  Forgot password?
-                </Link>
-              </div>
+                      <Button
+                        type="submit"
+                        className="w-full rounded-full bg-gradient-to-r from-[#d946ef] to-[#f43f5e] hover:opacity-90 text-white text-base font-semibold border-0 h-14 mt-4 transition-opacity"
+                        isLoading={isLoading}
+                      >
+                        Reset Password
+                      </Button>
+                    </form>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="success"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center py-6"
+                  >
+                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-500/10 text-green-500 mb-6 mx-auto">
+                      <MailCheck className="w-10 h-10" />
+                    </div>
+                    <h2 className="text-white text-xl font-bold mb-3">Check your email</h2>
+                    <p className="text-gray-500 text-sm mb-8 leading-relaxed">
+                      We sent a password reset link to <br/> 
+                      <span className="font-medium text-white">your email address</span>
+                    </p>
 
-              <div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full rounded-full bg-transparent border border-white/20 text-white hover:bg-white/10 h-14 font-semibold text-sm transition-colors"
-                  onClick={() => router.push('/signup')}
-                >
-                  Create new account
-                </Button>
-              </div>
+                    <Button
+                      type="button"
+                      onClick={() => router.push('/login')}
+                      className="w-full rounded-full bg-transparent hover:bg-white/10 text-white border border-white/20 text-base font-semibold h-14 transition-colors"
+                    >
+                      Return to login
+                    </Button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </Card>
         </motion.div>
