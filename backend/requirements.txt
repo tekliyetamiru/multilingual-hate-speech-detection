@@ -1,0 +1,12 @@
+flask 
+flask-sqlalchemy 
+flask-login 
+flask-wtf 
+flask-cors 
+python-telegram-bot==20.6 
+torch 
+transformers 
+psutil 
+chapa 
+python-dotenv 
+httpx==0.24.1
