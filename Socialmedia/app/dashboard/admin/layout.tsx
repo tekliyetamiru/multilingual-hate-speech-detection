@@ -9,10 +9,10 @@ import {
   LayoutDashboard,
   Users,
   FileText,
-  AlertTriangle,
+  MessageCircle,
+  Flag,
   BarChart3,
   Shield,
-  Activity,
   Bell,
   Settings,
   LogOut,
@@ -20,28 +20,8 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
-  MessageCircle,
-  Flag,
-  Database,
-  Server,
-  Globe,
-  Lock,
-  UserCog,
-  FolderOpen,
-  Image,
-  Video,
-  Calendar,
-  MessageSquare,
-  Heart,
-  Share2,
-  TrendingUp,
-  Download,
-  Upload,
-  RefreshCw,
   Moon,
   Sun,
-  Megaphone,
-  Mail, 
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Button } from '@/components/ui/Button';
@@ -53,126 +33,18 @@ interface NavItem {
   href: string;
   icon: React.ElementType;
   badge?: number;
-  submenu?: NavItem[];
 }
 
 const navigation: NavItem[] = [
-  {
-    name: 'Dashboard',
-    href: '/dashboard/admin',
-    icon: LayoutDashboard,
-  },
-  {
-    name: 'Users Management',
-    href: '/dashboard/admin/users',
-    icon: Users,
-    submenu: [
-      { name: 'All Users', href: '/dashboard/admin/users', icon: Users },
-      { name: 'Verified Users', href: '/dashboard/admin/users/verified', icon: UserCog },
-      { name: 'Banned Users', href: '/dashboard/admin/users/banned', icon: Lock },
-      { name: 'User Roles', href: '/dashboard/admin/users/roles', icon: Shield },
-    ],
-  },
-  {
-    name: 'Posts',
-    href: '/dashboard/admin/posts',
-    icon: FileText,
-    badge: 234,
-    submenu: [
-      { name: 'All Posts', href: '/dashboard/admin/posts', icon: FileText },
-      { name: 'Pending Review', href: '/dashboard/admin/posts/pending', icon: AlertTriangle, badge: 23 },
-      { name: 'Reported Posts', href: '/dashboard/admin/posts/reported', icon: Flag, badge: 12 },
-      { name: 'Archived', href: '/dashboard/admin/posts/archived', icon: FolderOpen },
-      { name: 'Media', href: '/dashboard/admin/posts/media', icon: Image },
-      { name: 'Videos', href: '/dashboard/admin/posts/videos', icon: Video },
-    ],
-  },
-  {
-    name: 'Comments',
-    href: '/dashboard/admin/comments',
-    icon: MessageCircle,
-    badge: 89,
-    submenu: [
-      { name: 'All Comments', href: '/dashboard/admin/comments', icon: MessageCircle },
-      { name: 'Reported', href: '/dashboard/admin/comments/reported', icon: Flag, badge: 8 },
-      { name: 'Spam', href: '/dashboard/admin/comments/spam', icon: AlertTriangle, badge: 15 },
-    ],
-  },
-  {
-    name: 'Reports',
-    href: '/dashboard/admin/reports',
-    icon: Flag,
-    badge: 23,
-    submenu: [
-      { name: 'Content Reports', href: '/dashboard/admin/reports/content', icon: FileText, badge: 12 },
-      { name: 'User Reports', href: '/dashboard/admin/reports/users', icon: Users, badge: 8 },
-      { name: 'Comment Reports', href: '/dashboard/admin/reports/comments', icon: MessageCircle, badge: 3 },
-      { name: 'Resolved', href: '/dashboard/admin/reports/resolved', icon: Shield },
-    ],
-  },
-  {
-    name: 'Analytics',
-    href: '/dashboard/admin/analytics',
-    icon: BarChart3,
-    submenu: [
-      { name: 'Overview', href: '/dashboard/admin/analytics', icon: TrendingUp },
-      { name: 'User Growth', href: '/dashboard/admin/analytics/users', icon: Users },
-      { name: 'Content Metrics', href: '/dashboard/admin/analytics/content', icon: FileText },
-      { name: 'Engagement', href: '/dashboard/admin/analytics/engagement', icon: Heart },
-      { name: 'Downloads', href: '/dashboard/admin/analytics/downloads', icon: Download },
-      { name: 'Reports', href: '/dashboard/admin/analytics/reports', icon: Flag },
-    ],
-  },
-  {
-    name: 'Moderation',
-    href: '/dashboard/admin/moderation',
-    icon: Shield,
-    badge: 45,
-    submenu: [
-      { name: 'Queue', href: '/dashboard/admin/moderation', icon: AlertTriangle, badge: 45 },
-      { name: 'Auto-Moderation', href: '/dashboard/admin/moderation/auto', icon: Server },
-      { name: 'Filters', href: '/dashboard/admin/moderation/filters', icon: Shield },
-      { name: 'Blocked Words', href: '/dashboard/admin/moderation/words', icon: Lock },
-      { name: 'Shadow Bans', href: '/dashboard/admin/moderation/shadow', icon: UserCog },
-      { name: 'Appeals', href: '/dashboard/admin/moderation/appeals', icon: MessageSquare },
-    ],
-  },
-  {
-    name: 'Activity',
-    href: '/dashboard/admin/activity',
-    icon: Activity,
-    submenu: [
-      { name: 'Live Activity', href: '/dashboard/admin/activity/live', icon: Activity },
-      { name: 'User Logs', href: '/dashboard/admin/activity/users', icon: Users },
-      { name: 'System Logs', href: '/dashboard/admin/activity/system', icon: Server },
-      { name: 'Audit Trail', href: '/dashboard/admin/activity/audit', icon: Database },
-    ],
-  },
-  {
-    name: 'Notifications',
-    href: '/dashboard/admin/notifications',
-    icon: Bell,
-    badge: 12,
-    submenu: [
-      { name: 'All Notifications', href: '/dashboard/admin/notifications', icon: Bell, badge: 12 },
-      { name: 'Announcements', href: '/dashboard/admin/notifications/announcements', icon: Megaphone },
-      { name: 'Broadcast', href: '/dashboard/admin/notifications/broadcast', icon: Globe },
-      { name: 'Templates', href: '/dashboard/admin/notifications/templates', icon: FileText },
-    ],
-  },
-  {
-    name: 'Settings',
-    href: '/dashboard/admin/settings',
-    icon: Settings,
-    submenu: [
-      { name: 'General', href: '/dashboard/admin/settings/general', icon: Settings },
-      { name: 'Security', href: '/dashboard/admin/settings/security', icon: Lock },
-      { name: 'Privacy', href: '/dashboard/admin/settings/privacy', icon: Shield },
-      { name: 'API', href: '/dashboard/admin/settings/api', icon: Server },
-      { name: 'Email', href: '/dashboard/admin/settings/email', icon: Mail },
-      { name: 'Backup', href: '/dashboard/admin/settings/backup', icon: Database },
-    ],
-  },
+  { name: 'Dashboard', href: '/dashboard/admin', icon: LayoutDashboard },
+  { name: 'Users', href: '/dashboard/admin/users', icon: Users, badge: 0 },
+  { name: 'Posts', href: '/dashboard/admin/posts', icon: FileText, badge: 0 },
+  { name: 'Comments', href: '/dashboard/admin/comments', icon: MessageCircle, badge: 0 },
+  { name: 'Reports', href: '/dashboard/admin/reports', icon: Flag, badge: 0 },
+  { name: 'Analytics', href: '/dashboard/admin/analytics', icon: BarChart3 },
+  { name: 'Moderation', href: '/dashboard/admin/moderation', icon: Shield },
+  { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
+  { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings },
 ];
 
 export default function AdminLayout({
@@ -182,34 +54,23 @@ export default function AdminLayout({
 }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
   const { theme, setTheme } = useTheme();
 
-  const toggleSubmenu = (name: string) => {
-    setExpandedMenus(prev =>
-      prev.includes(name)
-        ? prev.filter(item => item !== name)
-        : [...prev, name]
-    );
-  };
-
   const handleLogout = async () => {
     try {
       await signOut({ redirect: false });
       router.push('/');
-      toast.success('Logged out successfully');
+      toast.success('Logged out');
     } catch (error) {
-      toast.error('Failed to logout');
+      toast.error('Logout failed');
     }
   };
 
   const isActive = (href: string) => {
-    if (href === '/dashboard/admin') {
-      return pathname === href;
-    }
+    if (href === '/dashboard/admin') return pathname === href;
     return pathname.startsWith(href);
   };
 
@@ -240,7 +101,7 @@ export default function AdminLayout({
             exit={{ x: -300 }}
             transition={{ duration: 0.3 }}
             className={`fixed top-0 left-0 h-full bg-white dark:bg-gray-800 shadow-xl z-40 overflow-y-auto transition-all duration-300 ${
-              sidebarCollapsed ? 'w-20' : 'w-80'
+              sidebarCollapsed ? 'w-20' : 'w-72'
             } ${mobileMenuOpen ? 'block' : 'hidden lg:block'}`}
           >
             <div className="p-6">
@@ -252,7 +113,7 @@ export default function AdminLayout({
                   </div>
                   {!sidebarCollapsed && (
                     <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                      Admin Panel
+                      Admin
                     </span>
                   )}
                 </Link>
@@ -290,86 +151,33 @@ export default function AdminLayout({
               <nav className="space-y-1">
                 {navigation.map((item) => {
                   const active = isActive(item.href);
-                  const hasSubmenu = item.submenu && item.submenu.length > 0;
-                  const isExpanded = expandedMenus.includes(item.name);
-
                   return (
-                    <div key={item.name} className="space-y-1">
-                      <div
-                        className={`flex items-center justify-between px-4 py-3 rounded-lg cursor-pointer transition ${
-                          active && !hasSubmenu
-                            ? 'bg-purple-600 text-white'
-                            : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                        }`}
-                        onClick={() => {
-                          if (hasSubmenu) {
-                            toggleSubmenu(item.name);
-                          } else {
-                            router.push(item.href);
-                          }
-                        }}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <item.icon className={`h-5 w-5 ${active && !hasSubmenu ? 'text-white' : ''}`} />
-                          {!sidebarCollapsed && (
-                            <>
-                              <span className="text-sm font-medium">{item.name}</span>
-                              {item.badge && (
-                                <span className={`px-2 py-0.5 text-xs rounded-full ${
-                                  active && !hasSubmenu
-                                    ? 'bg-white text-purple-600'
-                                    : 'bg-red-500 text-white'
-                                }`}>
-                                  {item.badge}
-                                </span>
-                              )}
-                            </>
-                          )}
-                        </div>
-                        {hasSubmenu && !sidebarCollapsed && (
-                          <ChevronRight
-                            className={`h-4 w-4 transition-transform ${
-                              isExpanded ? 'rotate-90' : ''
-                            }`}
-                          />
-                        )}
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center justify-between px-4 py-3 rounded-lg transition-all duration-200 ${
+                        active
+                          ? 'bg-purple-600 text-white shadow-md'
+                          : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <item.icon className={`h-5 w-5 ${active ? 'text-white' : ''}`} />
+                        {!sidebarCollapsed && <span className="text-sm font-medium">{item.name}</span>}
                       </div>
-
-                      {/* Submenu */}
-                      {hasSubmenu && isExpanded && !sidebarCollapsed && (
-                        <div className="ml-4 pl-4 border-l-2 border-gray-200 dark:border-gray-700 space-y-1">
-                          {item.submenu?.map((subItem) => {
-                            const subActive = pathname === subItem.href;
-                            return (
-                              <Link
-                                key={subItem.href}
-                                href={subItem.href}
-                                className={`flex items-center justify-between px-4 py-2 rounded-lg transition ${
-                                  subActive
-                                    ? 'bg-purple-100 text-purple-600 dark:bg-purple-900 dark:text-purple-300'
-                                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                                }`}
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <subItem.icon className="h-4 w-4" />
-                                  <span className="text-sm">{subItem.name}</span>
-                                </div>
-                                {subItem.badge && (
-                                  <span className="px-2 py-0.5 text-xs bg-red-500 text-white rounded-full">
-                                    {subItem.badge}
-                                  </span>
-                                )}
-                              </Link>
-                            );
-                          })}
-                        </div>
+                      {item.badge !== undefined && item.badge > 0 && !sidebarCollapsed && (
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          active ? 'bg-white text-purple-600' : 'bg-red-500 text-white'
+                        }`}>
+                          {item.badge}
+                        </span>
                       )}
-                    </div>
+                    </Link>
                   );
                 })}
               </nav>
 
-              {/* Logout Button */}
+              {/* Logout */}
               <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={handleLogout}
@@ -380,7 +188,7 @@ export default function AdminLayout({
                 </button>
               </div>
 
-              {/* Version Info */}
+              {/* Version */}
               {!sidebarCollapsed && (
                 <div className="mt-4 text-center text-xs text-gray-400">
                   <p>Admin Panel v1.0.0</p>
@@ -395,7 +203,7 @@ export default function AdminLayout({
       {/* Main Content */}
       <main
         className={`transition-all duration-300 ${
-          sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-80'
+          sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72'
         } p-6`}
       >
         {children}
