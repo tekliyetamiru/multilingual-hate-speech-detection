@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -10,9 +10,10 @@ import {
   EyeOff,
   Filter,
   Search,
-  Clock,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/Card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -33,199 +34,164 @@ interface Report {
   description: string;
   status: 'pending' | 'resolved' | 'dismissed';
   created_at: string;
-  reporter: {
+  reporter_username: string;
+  reporter_avatar: string;
+  reported_user?: {
+    id: string;
     username: string;
+    full_name: string;
     avatar_url: string;
   };
-  reported_user?: {
-    username: string;
+  reported_post?: {
+    id: string;
+    content: string;
+    user: { username: string; full_name: string };
   };
-  content?: string;
+  reported_comment?: {
+    id: string;
+    content: string;
+    user: { username: string; full_name: string };
+  };
 }
 
 export default function ModerationPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('pending');
   const [filterType, setFilterType] = useState('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '15',
+        status: 'pending',
+        type: filterType,
+      });
+      const response = await fetch(`/api/admin/reports?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch');
+      const data = await response.json();
+      setReports(data.reports);
+      setTotalPages(data.pagination.totalPages);
+    } catch (error) {
+      console.error('Error fetching reports:', error);
+      toast.error('Failed to load moderation queue');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filterType]);
 
   useEffect(() => {
-    // Mock data instead of API call
-    setTimeout(() => {
-      setReports([
-        {
-          id: '1',
-          type: 'post',
-          reason: 'Inappropriate content',
-          description: 'This post contains offensive language',
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          reporter: { username: 'user123', avatar_url: '' },
-          reported_user: { username: 'offender' },
-          content: 'This is the reported content...',
-        },
-        {
-          id: '2',
-          type: 'comment',
-          reason: 'Spam',
-          description: 'Repeated spam comments',
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          reporter: { username: 'user456', avatar_url: '' },
-          reported_user: { username: 'spammer' },
-          content: 'Check out my website...',
-        },
-      ]);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    fetchReports();
+  }, [fetchReports]);
 
-  const handleResolve = (reportId: string) => {
-    setReports(prev => prev.filter(r => r.id !== reportId));
-    toast.success('Report resolved');
+  const handleAction = async (reportId: string, action: string) => {
+    setActionLoading(reportId);
+    try {
+      const response = await fetch('/api/admin/reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, action }),
+      });
+      if (response.ok) {
+        toast.success(`Report ${action}d`);
+        fetchReports(); // refresh list
+      } else {
+        toast.error(`Failed to ${action} report`);
+      }
+    } catch (error) {
+      toast.error(`Failed to ${action} report`);
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleDismiss = (reportId: string) => {
-    setReports(prev => prev.filter(r => r.id !== reportId));
-    toast.success('Report dismissed');
-  };
+  const filteredReports = reports.filter(report =>
+    report.reason.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    report.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    report.reporter_username.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  if (loading) {
+  if (loading && page === 1) {
     return (
-      <div className="space-y-4">
-        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-48 animate-pulse" />
-        <div className="space-y-4">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Moderation Queue</h1>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Moderation Queue</h1>
+        <Button variant="outline" onClick={fetchReports}>
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-500">Pending Reports</p>
+            <p className="text-2xl font-bold">{reports.length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-500">Posts Reported</p>
+            <p className="text-2xl font-bold">{reports.filter(r => r.reported_post).length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-sm text-gray-500">Comments Reported</p>
+            <p className="text-2xl font-bold">{reports.filter(r => r.reported_comment).length}</p>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Search reports..."
-            className="pl-9"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger>
-            <Filter className="h-4 w-4 mr-2" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="resolved">Resolved</SelectItem>
-            <SelectItem value="dismissed">Dismissed</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger>
-            <SelectValue placeholder="Filter by type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="post">Posts</SelectItem>
-            <SelectItem value="comment">Comments</SelectItem>
-            <SelectItem value="user">Users</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Button variant="outline">Apply Filters</Button>
-      </div>
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search reports..."
+                className="pl-9"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger>
+                <Filter className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filter by type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="post">Posts</SelectItem>
+                <SelectItem value="comment">Comments</SelectItem>
+                <SelectItem value="user">Users</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" onClick={fetchReports}>
+              Apply Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Reports List */}
       <div className="space-y-4">
-        {reports.map((report) => (
-          <motion.div
-            key={report.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-3">
-                    <Avatar src={report.reporter.avatar_url} alt={report.reporter.username} size="sm" />
-                    <div>
-                      <p className="font-medium">Reported by @{report.reporter.username}</p>
-                      <p className="text-xs text-gray-500">
-                        <Clock className="h-3 w-3 inline mr-1" />
-                        {new Date(report.created_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant="outline">{report.type}</Badge>
-                    <Badge variant="destructive">{report.status}</Badge>
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-red-500">Reason: {report.reason}</p>
-                  {report.description && (
-                    <p className="text-sm mt-1">{report.description}</p>
-                  )}
-                </div>
-
-                {report.content && (
-                  <div className="bg-gray-50 dark:bg-gray-900 p-3 rounded mb-4">
-                    <p className="text-sm italic">"{report.content}"</p>
-                  </div>
-                )}
-
-                <div className="flex space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => handleDismiss(report.id)}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Dismiss
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                    onClick={() => handleResolve(report.id)}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Resolve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="flex-1"
-                  >
-                    <EyeOff className="h-4 w-4 mr-2" />
-                    Remove
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-
-        {reports.length === 0 && (
+        {filteredReports.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-gray-400" />
@@ -233,8 +199,135 @@ export default function ModerationPage() {
               <p className="text-gray-500">All reports have been processed</p>
             </CardContent>
           </Card>
+        ) : (
+          filteredReports.map((report) => (
+            <motion.div
+              key={report.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <Avatar src={report.reporter_avatar} alt={report.reporter_username} size="sm" />
+                      <div>
+                        <p className="font-medium">Reported by @{report.reporter_username}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(report.created_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge variant="destructive">Pending</Badge>
+                  </div>
+
+                  <div className="mb-4">
+                    <p className="text-sm font-medium text-red-500">Reason: {report.reason}</p>
+                    {report.description && (
+                      <p className="text-sm mt-1 text-gray-600 dark:text-gray-400">{report.description}</p>
+                    )}
+                  </div>
+
+                  {report.reported_post && (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded mb-4">
+                      <p className="text-sm font-medium">Reported Post:</p>
+                      <p className="text-sm mt-1">"{report.reported_post.content}"</p>
+                      <p className="text-xs text-gray-500 mt-1">by @{report.reported_post.user.username}</p>
+                    </div>
+                  )}
+
+                  {report.reported_comment && (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded mb-4">
+                      <p className="text-sm font-medium">Reported Comment:</p>
+                      <p className="text-sm mt-1">"{report.reported_comment.content}"</p>
+                      <p className="text-xs text-gray-500 mt-1">by @{report.reported_comment.user.username}</p>
+                    </div>
+                  )}
+
+                  {report.reported_user && (
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded mb-4">
+                      <p className="text-sm font-medium">Reported User:</p>
+                      <p className="text-sm mt-1">@{report.reported_user.username}</p>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => handleAction(report.id, 'dismiss')}
+                      disabled={actionLoading === report.id}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Dismiss
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="default"
+                      className="flex-1 bg-green-600 hover:bg-green-700"
+                      onClick={() => handleAction(report.id, 'resolve')}
+                      disabled={actionLoading === report.id}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Resolve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => handleAction(report.id, 'remove_content')}
+                      disabled={actionLoading === report.id}
+                    >
+                      <EyeOff className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
+                    {report.reported_user && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => handleAction(report.id, 'shadow_ban')}
+                        disabled={actionLoading === report.id}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Shadow Ban
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))
         )}
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-500">
+            Page {page} of {totalPages}
+          </p>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
