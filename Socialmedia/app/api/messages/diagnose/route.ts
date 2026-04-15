@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       
       results.conversationDetails.push({
         conversationId: conv.id,
-        participantCount: participants.rowCount,
+        participantCount: participants.rows.length,
         participants: participants.rows,
         hasCurrentUser: participants.rows.some(p => p.user_id === session.user.id),
         participantIds: participants.rows.map(p => p.user_id)
@@ -58,8 +58,8 @@ export async function GET(req: NextRequest) {
 
     // 4. Check for conversations missing current user
     results.missingCurrentUser = results.conversationDetails
-      .filter(d => !d.hasCurrentUser)
-      .map(d => d.conversationId);
+      .filter((d: any) => !d.hasCurrentUser)
+      .map((d: any) => d.conversationId);
 
     // 5. Check all conversations in database
     const allConversations = await pool.query(
@@ -75,5 +75,96 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('Diagnostic error:', error);
     return NextResponse.json({ error: 'Diagnostic failed' }, { status: 500 });
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { conversationId } = await req.json();
+
+    const results: any = {
+      fixed: [],
+      errors: []
+    };
+
+    if (conversationId) {
+      const fixResult = await fixConversationParticipants(conversationId, session.user.id);
+      if (fixResult.success) {
+        results.fixed.push(fixResult);
+      } else {
+        results.errors.push(fixResult);
+      }
+    } else {
+      const missingConvs = await pool.query(
+        `SELECT c.id
+        FROM conversations c
+        WHERE NOT EXISTS (
+          SELECT 1 FROM conversation_participants 
+          WHERE conversation_id = c.id AND user_id = $1
+        )`,
+        [session.user.id]
+      );
+
+      for (const row of missingConvs.rows) {
+        const fixResult = await fixConversationParticipants(row.id, session.user.id);
+        if (fixResult.success) {
+          results.fixed.push(fixResult);
+        } else {
+          results.errors.push(fixResult);
+        }
+      }
+    }
+
+    return NextResponse.json(results);
+  } catch (error) {
+    console.error('Fix error:', error);
+    return NextResponse.json({ error: 'Fix failed' }, { status: 500 });
+  }
+}
+
+async function fixConversationParticipants(conversationId: string, userId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const client = await pool.connect() as any;
+  try {
+    const existing = await client.query(
+      `SELECT 1 FROM conversation_participants 
+       WHERE conversation_id = $1 AND user_id = $2`,
+      [conversationId, userId]
+    );
+
+    if (existing.rows.length > 0) {
+      return { conversationId, success: true, message: 'User already a participant' };
+    }
+
+    const convInfo = await client.query(
+      `SELECT type, created_by FROM conversations WHERE id = $1`,
+      [conversationId]
+    );
+
+    if (convInfo.rows.length === 0) {
+      return { conversationId, success: false, error: 'Conversation not found' };
+    }
+
+    const conv = convInfo.rows[0];
+    const role = conv.created_by === userId ? 'admin' : 'member';
+
+    await client.query(
+      `INSERT INTO conversation_participants 
+       (conversation_id, user_id, role, joined_at)
+       VALUES ($1, $2, $3, NOW())`,
+      [conversationId, userId, role]
+    );
+
+    return { conversationId, success: true, message: 'Added as participant', role };
+  } catch (error) {
+    console.error('Error fixing conversation:', error);
+    return { conversationId, success: false, error: String(error) };
+  } finally {
+    client.release();
   }
 }
