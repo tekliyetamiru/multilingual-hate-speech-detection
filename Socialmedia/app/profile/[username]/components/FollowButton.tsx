@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 interface FollowButtonProps {
   userId: string;
   initialIsFollowing: boolean;
-  onToggle?: (isFollowing: boolean) => void;
+  onToggle?: (isFollowing: boolean, newFollowerCount: number) => void; // CHANGED: pass count
 }
 
 export function FollowButton({ userId, initialIsFollowing, onToggle }: FollowButtonProps) {
@@ -22,11 +22,12 @@ export function FollowButton({ userId, initialIsFollowing, onToggle }: FollowBut
       const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed');
       
-      const data = await res.json();
+      const data = await res.json(); // data = { following: boolean, followerCount: number }
       
-      // Update both button and count at the exact same moment on success
+      // Update local button state
       setIsFollowing(data.following);
-      if (onToggle) onToggle(data.following);
+      // Pass both new status AND exact count to parent
+      if (onToggle) onToggle(data.following, data.followerCount);
       
       toast.success(data.following ? 'Following!' : 'Unfollowed');
     } catch (error) {

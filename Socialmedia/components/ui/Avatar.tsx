@@ -39,6 +39,7 @@ export function Avatar({ src, alt, size = 'md', className }: AvatarProps) {
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover"
           onError={() => setError(true)}
+          unoptimized={src?.includes('utfs.io')}
         />
       ) : (
         <User className="h-1/2 w-1/2 text-gray-400" />

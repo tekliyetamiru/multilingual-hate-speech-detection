@@ -160,10 +160,10 @@ function ProfileHeaderClient({
     { icon: Facebook, href: '#', color: 'hover:text-blue-600' },
   ];
 
-  const handleFollowToggle = (isFollowing: boolean) => {
-    setCurrentFollowers(prev => isFollowing ? prev + 1 : prev - 1);
-  };
-
+const handleFollowToggle = (isFollowing: boolean, newFollowerCount: number) => {
+  // Directly set the exact count from the server
+  setCurrentFollowers(newFollowerCount);
+};
   return (
     <>
       {/* Pre-load avatar for instant lightbox pop */}
