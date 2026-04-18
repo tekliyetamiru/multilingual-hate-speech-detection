@@ -200,6 +200,7 @@ const handleFollowToggle = (isFollowing: boolean, newFollowerCount: number) => {
           fill
           className="object-cover"
           priority
+          unoptimized={coverImage?.includes('utfs.io')}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
         

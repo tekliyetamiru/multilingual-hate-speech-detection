@@ -1,19 +1,23 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import { sql } from '@vercel/postgres';
+import { authOptions } from '@/lib/auth/auth';
+import { pool } from '@/lib/db';
 import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 
 export async function GET(request: Request) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userResult = await sql`
-      SELECT id, two_factor_enabled, two_factor_secret FROM users WHERE email = ${session.user.email}
-    `;
+    const userId = session.user.id;
+
+    const userResult = await pool.query(
+      'SELECT id, two_factor_enabled, two_factor_secret FROM users WHERE id = $1',
+      [userId]
+    );
 
     const user = userResult.rows[0];
 
@@ -24,11 +28,12 @@ export async function GET(request: Request) {
       });
 
       // Save secret to database
-      await sql`
-        UPDATE users SET two_factor_secret = ${secret.base32} WHERE id = ${user.id}
-      `;
+      await pool.query(
+        'UPDATE users SET two_factor_secret = $1 WHERE id = $2',
+        [secret.base32, userId]
+      );
 
-      // Generate QR code only if otpauth_url exists
+      // Generate QR code if otpauth_url exists
       let qrCodeUrl = null;
       if (secret.otpauth_url) {
         qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url);
@@ -54,16 +59,18 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession();
-    if (!session?.user?.email) {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const userId = session.user.id;
     const { enable, token } = await request.json();
 
-    const userResult = await sql`
-      SELECT id, two_factor_secret FROM users WHERE email = ${session.user.email}
-    `;
+    const userResult = await pool.query(
+      'SELECT id, two_factor_secret FROM users WHERE id = $1',
+      [userId]
+    );
 
     const user = userResult.rows[0];
 
@@ -84,16 +91,18 @@ export async function POST(request: Request) {
       }
 
       // Enable 2FA
-      await sql`
-        UPDATE users SET two_factor_enabled = true WHERE id = ${user.id}
-      `;
+      await pool.query(
+        'UPDATE users SET two_factor_enabled = true WHERE id = $1',
+        [userId]
+      );
 
       return NextResponse.json({ success: true, message: '2FA enabled successfully' });
     } else {
       // Disable 2FA
-      await sql`
-        UPDATE users SET two_factor_enabled = false, two_factor_secret = NULL WHERE id = ${user.id}
-      `;
+      await pool.query(
+        'UPDATE users SET two_factor_enabled = false, two_factor_secret = NULL WHERE id = $1',
+        [userId]
+      );
 
       return NextResponse.json({ success: true, message: '2FA disabled successfully' });
     }

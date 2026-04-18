@@ -659,7 +659,7 @@ export const messageQueries = {
     try {
       const result = await pool.query(
         `SELECT id, username, full_name, avatar_url, last_login,
-                EXISTS(SELECT 1 FROM followers 
+                EXISTS(SELECT 1 FROM follows 
                        WHERE follower_id = $2 AND following_id = users.id) as is_following
          FROM users
          WHERE (username ILIKE $1 OR full_name ILIKE $1)
