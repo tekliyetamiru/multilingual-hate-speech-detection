@@ -5,8 +5,8 @@ flask-wtf
 flask-cors 
 python-telegram-bot==20.6 
 torch 
-transformers 
+transformers==4.55.0
 psutil 
 chapa 
 python-dotenv 
-httpx==0.24.1
+httpx==0.25.0
