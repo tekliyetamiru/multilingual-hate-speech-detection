@@ -6,6 +6,8 @@ import { useRouter } from 'next/router';
 import { motion } from 'framer-motion';
 
 export default function Signup() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +23,7 @@ export default function Signup() {
       return;
     }
     setError('');
-    const result = await signup(username, email, password);
+    const result = await signup(firstName, lastName, username, email, password);
     if (result.success) {
       router.push('/login');
     } else {
@@ -40,6 +42,28 @@ export default function Signup() {
           <h1 className="text-2xl font-bold text-center mb-6">Create Account</h1>
           {error && <div className="bg-red-100 text-red-700 p-3 rounded mb-4 text-sm">{error}</div>}
           <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-gray-700 mb-2">First Name</label>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-gray-700 mb-2">Last Name</label>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-600"
+                  required
+                />
+              </div>
+            </div>
             <div className="mb-4">
               <label className="block text-gray-700 mb-2">Username</label>
               <input

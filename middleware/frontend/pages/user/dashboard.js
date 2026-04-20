@@ -3,10 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import Layout from '../../components/Layout';
 import api from '../../lib/api';
 import { Line } from 'react-chartjs-2';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { motion } from 'framer-motion';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
 export default function UserDashboard() {
   const { user } = useAuth();
@@ -16,7 +16,10 @@ export default function UserDashboard() {
   const [announcements, setAnnouncements] = useState([]);
   const [credits, setCredits] = useState(0);
   const [loading, setLoading] = useState(true);
-
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [selectedAmount, setSelectedAmount] = useState(null);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  
   const fetchData = async () => {
     try {
       const [msgsRes, statsRes, trendRes, annRes, creditsRes] = await Promise.all([
@@ -38,13 +41,27 @@ export default function UserDashboard() {
     }
   };
   
+  const packages = [
+    { amount: 100, credits: 1000, label: '100 ETB → 1,000 Credits' },
+    { amount: 1000, credits: 11000, label: '1,000 ETB → 11,000 Credits' },
+    { amount: 10000, credits: 120000, label: '10,000 ETB → 120,000 Credits' },
+  ];
+
   const handlePurchase = async (amount) => {
+    if (!phoneNumber) {
+      alert('Please enter your phone number');
+      return;
+    }
+    if (!/^(09|07)\d{8}$/.test(phoneNumber)) {
+      alert('Phone number must be 10 digits and start with 09 or 07');
+      return;
+    }
     try {
-      const response = await api.post('/api/user/create-payment', { amount });
+      const response = await api.post('/api/user/create-payment', { amount, phone_number: phoneNumber });
       window.location.href = response.data.checkout_url;
     } catch (error) {
       console.error('Payment initiation failed', error);
-      alert('Payment service unavailable. Please try again later.');
+      alert(error.response?.data?.error || 'Payment service unavailable. Please try again later.');
     }
   };
   useEffect(() => {
@@ -74,28 +91,77 @@ export default function UserDashboard() {
   return (
     <Layout title="Dashboard">
       {/* Welcome Section with Credits */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-8 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl shadow-lg p-6 text-white"
-      >
+      <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white p-6 rounded-2xl shadow-lg">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold">Welcome back, {user?.username}!</h1>
-            <p className="text-purple-100 mt-1">Monitor your groups and keep them safe.</p>
+            <h2 className="text-xl font-semibold">Available Credits</h2>
+            <p className="text-3xl font-bold mt-1">{credits}</p>
+            <p className="text-sm opacity-90 mt-1">Each message costs 1 credit</p>
           </div>
-          <div className="text-right">
-            <p className="text-sm opacity-90">Free Credits Remaining</p>
-            <p className="text-3xl font-bold">{credits}</p>
-            <button
-              onClick={() => handlePurchase(100)}
-              className="mt-2 bg-white text-purple-600 px-4 py-1 rounded-full text-sm font-semibold hover:bg-gray-100 transition"
-            >
-              Buy 1000 Credits (100 ETB)
-            </button>
+          <button
+            onClick={() => setShowPaymentModal(true)}
+            className="bg-white text-orange-600 px-5 py-2 rounded-full font-semibold hover:bg-gray-100 transition shadow-md"
+          >
+            Buy More
+          </button>
+        </div>
+      </div>
+
+      {/* Payment Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold mb-4">Purchase Credits</h2>
+            <div className="space-y-3 mb-4">
+              {packages.map((pkg) => (
+                <label key={pkg.amount} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="package"
+                    value={pkg.amount}
+                    checked={selectedAmount === pkg.amount}
+                    onChange={() => setSelectedAmount(pkg.amount)}
+                    className="mr-3"
+                  />
+                  <span className="font-medium">{pkg.label}</span>
+                </label>
+              ))}
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700 mb-2">Phone Number</label>
+              <input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="09XXXXXXXX"
+                className="w-full px-4 py-2 border rounded-lg"
+              />
+              <p className="text-xs text-gray-500 mt-1">For mobile money payment (telebirr, CBEBirr, etc.)</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  if (selectedAmount) handlePurchase(selectedAmount);
+                }}
+                disabled={!selectedAmount}
+                className="flex-1 bg-purple-600 text-white py-2 rounded-lg font-semibold hover:bg-purple-700 disabled:opacity-50"
+              >
+                Pay Now
+              </button>
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setSelectedAmount(null);
+                  setPhoneNumber('');
+                }}
+                className="flex-1 bg-gray-200 text-gray-800 py-2 rounded-lg font-semibold hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
-      </motion.div>
+      )}
 
       {/* Announcements */}
       {announcements.length > 0 && (

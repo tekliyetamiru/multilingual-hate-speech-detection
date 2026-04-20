@@ -34,15 +34,15 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signup = async (username, email, password) => {
-    try {
-      await api.post('/api/signup', { username, email, password });
-      return { success: true };
-    } catch (err) {
-      const errorMsg = err.response?.data?.error || 'Signup failed';
-      return { success: false, error: err.response?.data?.error || 'Signup failed' };
-    }
-  };
+  const signup = async (firstName, lastName, username, email, password) => {
+  try {
+    await api.post('/api/signup', { first_name: firstName, last_name: lastName, username, email, password });
+    return { success: true };
+  } catch (err) {
+    const errorMsg = err.response?.data?.error || 'Signup failed';
+    return { success: false, error: errorMsg };
+  }
+};
 
   const logout = async () => {
     try {
