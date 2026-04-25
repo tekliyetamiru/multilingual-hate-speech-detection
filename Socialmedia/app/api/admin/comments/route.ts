@@ -95,23 +95,28 @@ export async function PATCH(req: NextRequest) {
       await client.query('BEGIN');
 
       if (action === 'delete') {
-        await client.query(`DELETE FROM comments WHERE id = $1`, [commentId]);
+        await client.query('DELETE FROM comments WHERE id = $1', [commentId]);
       } else if (action === 'spam') {
-        await client.query(`UPDATE comments SET is_spam = true WHERE id = $1`, [commentId]);
+        await client.query('UPDATE comments SET is_spam = true WHERE id = $1', [commentId]);
       } else if (action === 'not-spam') {
-        await client.query(`UPDATE comments SET is_spam = false WHERE id = $1`, [commentId]);
+        await client.query('UPDATE comments SET is_spam = false WHERE id = $1', [commentId]);
       } else if (action === 'approve') {
-        // If comment was reported, we may also resolve related reports
-        await client.query(`DELETE FROM reports WHERE reported_comment_id = $1`, [commentId]);
+        // If comment was reported, resolve related reports
+        await client.query('DELETE FROM reports WHERE reported_comment_id = $1', [commentId]);
       } else {
         throw new Error('Invalid action');
       }
 
-      // Log admin action
+      // Log admin action using existing columns only
+      // Store comment ID inside details JSON since there is no target_comment_id column
       await client.query(
-        `INSERT INTO admin_logs (admin_id, action, target_comment_id, details)
-         VALUES ($1, $2, $3, $4)`,
-        [session.user.id, action, commentId, JSON.stringify({ notes }) ]
+        `INSERT INTO admin_logs (admin_id, action, target_user_id, target_post_id, details)
+         VALUES ($1, $2, NULL, NULL, $3)`,
+        [
+          session.user.id,
+          action,
+          JSON.stringify({ commentId, notes: notes || '' }),
+        ]
       );
 
       await client.query('COMMIT');

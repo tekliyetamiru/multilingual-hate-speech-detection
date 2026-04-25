@@ -54,6 +54,24 @@ export async function GET(req: NextRequest) {
       LIMIT 10
     `, [from, to]);
 
+
+    const totalUsersRes = await pool.query(
+      `SELECT COUNT(*) as total FROM users WHERE created_at BETWEEN $1 AND $2`,
+      [from, to]
+    );
+    const totalPostsRes = await pool.query(
+      `SELECT COUNT(*) as total FROM posts WHERE created_at BETWEEN $1 AND $2`,
+      [from, to]
+    );
+    const totalCommentsRes = await pool.query(
+      `SELECT COUNT(*) as total FROM comments WHERE created_at BETWEEN $1 AND $2`,
+      [from, to]
+    );
+    const totalLikesRes = await pool.query(
+      `SELECT COUNT(*) as total FROM reactions WHERE reaction_type = 'like' AND created_at BETWEEN $1 AND $2`,
+      [from, to]
+    );
+
     // Get content type distribution
     const contentDistribution = await pool.query(`
       SELECT 
@@ -73,6 +91,10 @@ export async function GET(req: NextRequest) {
     `, [from, to]);
 
     return NextResponse.json({
+      totalUsers: parseInt(totalUsersRes.rows[0].total),
+      totalPosts: parseInt(totalPostsRes.rows[0].total),
+      totalComments: parseInt(totalCommentsRes.rows[0].total),
+      totalLikes: parseInt(totalLikesRes.rows[0].total),
       userGrowth: userGrowth.rows,
       postActivity: postActivity.rows,
       engagement: engagement.rows[0] || { total_likes: 0, total_comments: 0, total_shares: 0 },
