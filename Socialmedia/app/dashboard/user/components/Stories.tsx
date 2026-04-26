@@ -50,6 +50,13 @@ export function Stories() {
       setSelectedStory(null);
     }
   };
+  
+
+  const handleStoryViewed = (storyId: string) => {
+    setStories((prev) =>
+      prev.map((s) => (s.id === storyId ? { ...s, viewed: true } : s))
+    );
+  };
 
   if (loading) {
     return (
@@ -127,6 +134,7 @@ export function Stories() {
           initialIndex={selectedStory}
           onClose={() => setSelectedStory(null)}
           onComplete={handleStoryComplete}
+          onStoryViewed={handleStoryViewed}
         />
       )}
 
@@ -140,3 +148,5 @@ export function Stories() {
     </>
   );
 }
+
+

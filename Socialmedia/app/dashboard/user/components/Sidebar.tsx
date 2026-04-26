@@ -30,12 +30,10 @@ export function Sidebar({ user }: SidebarProps) {
   const navigation = [
     { name: "Home", href: "/dashboard/user", icon: Home },
     { name: "Profile", href: `/profile/${user.username}`, icon: User },
-    { name: "Explore", href: "/explore", icon: Users },
     { name: "Messages", href: "/messages", icon: MessageCircle },
     { name: "Notifications", href: "/notifications", icon: Bell },
     { name: "Saved", href: "/saved", icon: Bookmark },
     { name: "Events", href: "/events", icon: Calendar },
-    { name: "Live", href: "/live", icon: Video },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
