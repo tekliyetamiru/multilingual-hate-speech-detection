@@ -42,7 +42,6 @@ const navigation: NavItem[] = [
   { name: 'Comments', href: '/dashboard/admin/comments', icon: MessageCircle, badge: 0 },
   { name: 'Reports', href: '/dashboard/admin/reports', icon: Flag, badge: 0 },
   { name: 'Analytics', href: '/dashboard/admin/analytics', icon: BarChart3 },
-  { name: 'Moderation', href: '/dashboard/admin/moderation', icon: Shield },
   { name: 'Notifications', href: '/dashboard/admin/notifications', icon: Bell },
   { name: 'Settings', href: '/dashboard/admin/settings', icon: Settings },
 ];
@@ -211,3 +210,5 @@ export default function AdminLayout({
     </div>
   );
 }
+
+
