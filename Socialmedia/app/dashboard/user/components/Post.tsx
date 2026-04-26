@@ -386,24 +386,27 @@ export function Post({ post, currentUserId, onUpdate, onSave, onDelete }: PostPr
                 post.media_urls.length === 1 ? "h-96" : "h-48"
               }`}
             >
-              <Image
-                src={url}
-                alt={`Post media ${index + 1}`}
-                fill
-                className="object-cover cursor-pointer hover:opacity-95 transition"
-                onClick={() => window.open(url, "_blank")}
-              />
-              {post.media_types?.[index] === "video" && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-12 h-12 bg-black/50 rounded-full flex items-center justify-center">
-                    <Play className="h-6 w-6 text-white ml-1" />
-                  </div>
-                </div>
+              {post.media_types?.[index] === "video" ? (
+                <video
+                  src={url}
+                  controls
+                  className="w-full h-full object-cover"
+                  playsInline
+                />
+              ) : (
+                <Image
+                  src={url}
+                  alt={`Post media ${index + 1}`}
+                  fill
+                  className="object-cover cursor-pointer hover:opacity-95 transition"
+                  onClick={() => window.open(url, "_blank")}
+                />
               )}
             </div>
           ))}
         </div>
       )}
+
 
       {/* Post Stats */}
       <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700">
@@ -593,3 +596,4 @@ export function Post({ post, currentUserId, onUpdate, onSave, onDelete }: PostPr
     </motion.article>
   );
 }
+

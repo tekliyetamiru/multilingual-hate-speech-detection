@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Image, Video, Smile, MapPin, X, Loader2, Globe, Users, Lock } from 'lucide-react';
+import { useUploadThing } from '@/lib/uploadthing';
+import { Image, Smile, MapPin, X, Loader2, Globe, Users, Lock, Upload, Play } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import {
@@ -11,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/DropdownMenu';
 import { toast } from 'react-hot-toast';
-import { UploadButton } from '@uploadthing/react';
 
 interface CreatePostProps {
   user: any;
@@ -27,12 +27,46 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { startUpload } = useUploadThing('postMedia', {
+    onUploadProgress: (p) => setUploadProgress(p),
+    onClientUploadComplete: (res) => {
+      setUploadedFiles(prev => [...prev, ...res]);
+      setIsUploading(false);
+      setUploadProgress(0);
+      toast.success('Upload complete!');
+    },
+    onUploadError: (error) => {
+      console.error('Upload error:', error);
+      toast.error('Upload failed. Please try again.');
+      setIsUploading(false);
+      setUploadProgress(0);
+    },
+  });
 
   const visibilityOptions = [
     { value: 'public', label: 'Public', icon: Globe },
     { value: 'followers', label: 'Followers only', icon: Users },
     { value: 'close_friends', label: 'Close friends', icon: Lock },
   ];
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    try {
+      await startUpload(Array.from(files));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,7 +82,7 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
           visibility,
           location,
           tags,
-          mediaUrls: uploadedFiles.map(f => f.url),
+          mediaUrls: uploadedFiles.map(f => f.ufsUrl),
           mediaTypes: uploadedFiles.map(f => f.type?.startsWith('image') ? 'image' : 'video'),
         }),
       });
@@ -61,10 +95,7 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
         setLocation('');
         setTags('');
         setIsExpanded(false);
-        
-        if (onPostCreated) {
-          onPostCreated(newPost);
-        }
+        if (onPostCreated) onPostCreated(newPost);
       } else {
         const error = await response.json();
         toast.error(error.error || 'Failed to create post');
@@ -97,6 +128,22 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
               rows={isExpanded ? 4 : 1}
             />
 
+            {/* Upload Progress Bar */}
+            {isUploading && (
+              <div className="mt-3">
+                <div className="flex items-center space-x-2 text-sm text-gray-500 mb-1">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Uploading... {uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-purple-600 h-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Uploaded Files Preview */}
             {uploadedFiles.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-3">
@@ -110,8 +157,8 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
                           className="w-full h-full object-cover"
                         />
                       ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <Video className="h-8 w-8 text-gray-400" />
+                        <div className="w-full h-full flex items-center justify-center relative">
+                          <Play className="h-8 w-8 text-gray-400" />
                         </div>
                       )}
                     </div>
@@ -127,18 +174,9 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
               </div>
             )}
 
-            {/* Upload Progress */}
-            {isUploading && (
-              <div className="mt-2 flex items-center space-x-2 text-sm text-gray-500">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Uploading...</span>
-              </div>
-            )}
-
             {/* Expanded Options */}
             {isExpanded && (
               <div className="mt-4 space-y-3">
-                {/* Location and Tags */}
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
                     <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -162,47 +200,37 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    {/* UploadThing Button */}
-                    <UploadButton
-                      endpoint="imageUploader"
-                      onClientUploadComplete={(res) => {
-                        setUploadedFiles(prev => [...prev, ...res]);
-                        setIsUploading(false);
-                        toast.success('Upload completed!');
-                      }}
-                      onUploadError={(error: Error) => {
-                        toast.error(`Upload failed: ${error.message}`);
-                        setIsUploading(false);
-                      }}
-                      onUploadBegin={() => {
-                        setIsUploading(true);
-                      }}
-                      className="ut-button:bg-transparent ut-button:text-gray-600 ut-button:hover:text-purple-600 ut-button:h-8 ut-button:text-sm ut-allowed-content:hidden"
-                    />
-
-                    {/* Emoji Picker (placeholder) */}
+                    {/* File Upload Button */}
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
                       className="text-gray-600 hover:text-purple-600"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading}
                     >
+                      <Upload className="h-5 w-5 mr-1" />
+                      Media
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+
+                    <Button type="button" variant="ghost" size="sm" className="text-gray-600 hover:text-purple-600">
                       <Smile className="h-5 w-5 mr-1" />
                       Feeling
                     </Button>
 
-                    {/* Visibility Dropdown */}
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="text-gray-600 hover:text-purple-600"
-                        >
+                        <Button type="button" variant="ghost" size="sm" className="text-gray-600 hover:text-purple-600">
                           <SelectedVisibilityIcon className="h-5 w-5 mr-1" />
                           {visibilityOptions.find(v => v.value === visibility)?.label}
                         </Button>
@@ -262,3 +290,5 @@ export function CreatePost({ user, onPostCreated }: CreatePostProps) {
     </div>
   );
 }
+
+
