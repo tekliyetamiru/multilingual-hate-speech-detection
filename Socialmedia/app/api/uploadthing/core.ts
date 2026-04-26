@@ -6,6 +6,21 @@ import { db } from "@/lib/db/queries";
 const f = createUploadthing();
 
 export const ourFileRouter = {
+
+  postMedia: f({
+    image: { maxFileSize: "4MB", maxFileCount: 10, contentDisposition: "inline" },
+    video: { maxFileSize: "8MB", maxFileCount: 10, contentDisposition: "inline" },
+  })
+    .middleware(async () => {
+      const session = await getServerSession(authOptions);
+      if (!session) throw new Error("Unauthorized");
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("✅ Post media uploaded by userId:", metadata.userId);
+      return { uploadedBy: metadata.userId, url: file.url, type: file.type };
+  }),
+
   imageUploader: f({ 
     image: { 
       maxFileSize: "4MB", 
@@ -22,7 +37,7 @@ export const ourFileRouter = {
       console.log("📎 File URL:", file.url);
       return { uploadedBy: metadata.userId };
     }),
-    
+  
   avatarUploader: f({ 
     image: { 
       maxFileSize: "4MB", 
@@ -71,6 +86,21 @@ export const ourFileRouter = {
     .onUploadComplete(async ({ metadata, file }) => {
       console.log("✅ Video upload complete for userId:", metadata.userId);
       return { uploadedBy: metadata.userId };
+    }),
+
+  // ✅ New endpoint for stories (images & videos)
+  storyMedia: f({
+    image: { maxFileSize: "32MB", maxFileCount: 1 },
+    video: { maxFileSize: "128MB", maxFileCount: 1 },
+  })
+    .middleware(async () => {
+      const session = await getServerSession(authOptions);
+      if (!session) throw new Error("Unauthorized");
+      return { userId: session.user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("✅ Story media uploaded by userId:", metadata.userId);
+      return { uploadedBy: metadata.userId, url: file.url };
     }),
 } satisfies FileRouter;
 

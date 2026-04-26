@@ -11,13 +11,48 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url);
-    const status = searchParams.get('status') || 'pending';
+    const status = searchParams.get('status') || 'all';
     const type = searchParams.get('type') || 'all';
+    const search = searchParams.get('search') || '';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
 
-    let query = `
+    // Build WHERE conditions and parameters dynamically
+    const conditions: string[] = [];
+    const params: any[] = [];
+
+    if (status !== 'all') {
+      conditions.push(`r.status = $${params.length + 1}`);
+      params.push(status);
+    }
+
+    if (type !== 'all') {
+      if (type === 'post') {
+        conditions.push(`r.reported_post_id IS NOT NULL`);
+      } else if (type === 'comment') {
+        conditions.push(`r.reported_comment_id IS NOT NULL`);
+      } else if (type === 'user') {
+        conditions.push(`r.reported_user_id IS NOT NULL`);
+      }
+    }
+
+    if (search) {
+      // Search in reason, description, reporter username, reported username/content
+      conditions.push(`
+        (r.reason ILIKE $${params.length + 1} OR 
+         r.description ILIKE $${params.length + 1} OR 
+         reporter.username ILIKE $${params.length + 1} OR
+         (SELECT u.username FROM users u WHERE u.id = r.reported_user_id) ILIKE $${params.length + 1} OR
+         (SELECT p.content FROM posts p WHERE p.id = r.reported_post_id) ILIKE $${params.length + 1} OR
+         (SELECT c.content FROM comments c WHERE c.id = r.reported_comment_id) ILIKE $${params.length + 1})
+      `);
+      params.push(`%${search}%`);
+    }
+
+    const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const query = `
       SELECT 
         r.*,
         reporter.username as reporter_username,
@@ -63,38 +98,19 @@ export async function GET(req: NextRequest) {
         ) as reported_comment
       FROM reports r
       JOIN users reporter ON r.reporter_id = reporter.id
-      WHERE r.status = $1
+      ${whereClause}
+      ORDER BY r.created_at DESC 
+      LIMIT $${params.length + 1} OFFSET $${params.length + 2}
     `;
 
-    const params: any[] = [status];
-
-    if (type !== 'all') {
-      if (type === 'post') {
-        query += ` AND r.reported_post_id IS NOT NULL`;
-      } else if (type === 'comment') {
-        query += ` AND r.reported_comment_id IS NOT NULL`;
-      } else if (type === 'user') {
-        query += ` AND r.reported_user_id IS NOT NULL`;
-      }
-    }
-
-    query += ` ORDER BY r.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
-
     const result = await pool.query(query, params);
 
-    // Get total count for pagination
-    let countQuery = `SELECT COUNT(*) as total FROM reports WHERE status = $1`;
-    const countParams: any[] = [status];
-    if (type !== 'all') {
-      if (type === 'post') {
-        countQuery += ` AND reported_post_id IS NOT NULL`;
-      } else if (type === 'comment') {
-        countQuery += ` AND reported_comment_id IS NOT NULL`;
-      } else if (type === 'user') {
-        countQuery += ` AND reported_user_id IS NOT NULL`;
-      }
-    }
+    // Count query (same conditions but without LIMIT/OFFSET)
+    const countConditions = conditions.slice(); // copy
+    const countWhere = countConditions.length ? `WHERE ${countConditions.join(' AND ')}` : '';
+    const countQuery = `SELECT COUNT(*) as total FROM reports r JOIN users reporter ON r.reporter_id = reporter.id ${countWhere}`;
+    const countParams = params.slice(0, -2); // remove limit/offset
     const countResult = await pool.query(countQuery, countParams);
     const total = parseInt(countResult.rows[0].total);
 
@@ -112,6 +128,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
 
 export async function POST(req: NextRequest) {
   try {
