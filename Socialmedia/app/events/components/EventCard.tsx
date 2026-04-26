@@ -13,7 +13,6 @@ import {
   Heart,
   Share2,
   Bookmark,
-  ChevronRight,
   Globe,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -33,9 +32,15 @@ export function EventCard({ event, featured = false }: EventCardProps) {
   const [isLiked, setIsLiked] = useState(false);
   const [isRsvped, setIsRsvped] = useState(false);
 
-  const handleRsvp = () => {
-    setIsRsvped(!isRsvped);
-    toast.success(isRsvped ? 'RSVP cancelled' : 'RSVP confirmed!');
+  const handleRsvp = async () => {
+    try {
+      const res = await fetch(`/api/events/${event.id}/rsvp`, { method: 'POST' });
+      const data = await res.json();
+      setIsRsvped(data.attending);
+      toast.success(data.attending ? 'You are attending!' : 'RSVP cancelled');
+    } catch (error) {
+      toast.error('Failed to RSVP');
+    }
   };
 
   const handleSave = () => {
@@ -52,6 +57,9 @@ export function EventCard({ event, featured = false }: EventCardProps) {
     toast.success('Link copied to clipboard!');
   };
 
+  const startTime = new Date(event.start_time);
+  const endTime = event.end_time ? new Date(event.end_time) : null;
+
   return (
     <motion.div
       whileHover={{ y: -5 }}
@@ -62,24 +70,26 @@ export function EventCard({ event, featured = false }: EventCardProps) {
       }`}>
         <div className="relative h-48 group">
           <Image
-            src={event.image}
+            src={event.cover_url || 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800'}
             alt={event.title}
             fill
             className="object-cover group-hover:scale-110 transition duration-500"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
           
-          {/* Tags */}
-          <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-            {event.tags.slice(0, 2).map((tag: string) => (
-              <Badge key={tag} variant="secondary" className="bg-black/50 text-white border-0">
-                #{tag}
-              </Badge>
-            ))}
-          </div>
+          {/* Tags (if any) */}
+          {event.tags && event.tags.length > 0 && (
+            <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+              {event.tags.slice(0, 2).map((tag: string) => (
+                <Badge key={tag} variant="secondary" className="bg-black/50 text-white border-0">
+                  #{tag}
+                </Badge>
+              ))}
+            </div>
+          )}
 
           {/* Online Badge */}
-          {event.isOnline && (
+          {event.is_online && (
             <div className="absolute top-2 right-2">
               <Badge className="bg-purple-600 text-white border-0">
                 <Video className="h-3 w-3 mr-1" />
@@ -126,9 +136,9 @@ export function EventCard({ event, featured = false }: EventCardProps) {
                 {event.title}
               </h3>
             </Link>
-            {event.maxAttendees && (
+            {event.max_attendees && (
               <Badge variant="outline" className="text-xs">
-                {event.attendees}/{event.maxAttendees}
+                {event.attendees_count || 0}/{event.max_attendees}
               </Badge>
             )}
           </div>
@@ -140,34 +150,39 @@ export function EventCard({ event, featured = false }: EventCardProps) {
           <div className="space-y-2 text-sm">
             <div className="flex items-center text-gray-500">
               <Calendar className="h-4 w-4 mr-2 text-purple-600" />
-              <span className="font-medium">{format(new Date(event.date), 'EEEE, MMMM d, yyyy')}</span>
+              <span className="font-medium">{format(startTime, 'EEEE, MMMM d, yyyy')}</span>
             </div>
             
             <div className="flex items-center text-gray-500">
               <Clock className="h-4 w-4 mr-2 text-purple-600" />
-              <span>{event.time} - {event.endTime}</span>
+              <span>
+                {format(startTime, 'h:mm a')}
+                {endTime && ` - ${format(endTime, 'h:mm a')}`}
+              </span>
             </div>
 
             <div className="flex items-center text-gray-500">
-              {event.isOnline ? (
+              {event.is_online ? (
                 <Globe className="h-4 w-4 mr-2 text-purple-600" />
               ) : (
                 <MapPin className="h-4 w-4 mr-2 text-purple-600" />
               )}
-              <span className="truncate">{event.location}</span>
+              <span className="truncate">
+                {event.is_online ? (event.meeting_url || 'Online event') : event.location}
+              </span>
             </div>
 
             <div className="flex items-center text-gray-500">
               <Users className="h-4 w-4 mr-2 text-purple-600" />
-              <span>{event.attendees} attending</span>
+              <span>{event.attendees_count || 0} attending</span>
             </div>
           </div>
 
           <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-2">
-              <Avatar src={event.organizer.avatar} alt={event.organizer.username} size="sm" />
+              <Avatar src={event.organizer_avatar} alt={event.organizer_username} size="sm" />
               <span className="text-xs text-gray-500">
-                by {event.organizer.name}
+                by {event.organizer_name || event.organizer_username}
               </span>
             </div>
             

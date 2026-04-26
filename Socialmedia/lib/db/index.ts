@@ -20,9 +20,9 @@ const mockPool = {
 export const pool = !isBrowser
   ? new Pool({
       connectionString: process.env.DATABASE_URL,
-      max: 20,
+      max: 3,
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000, // Reduced timeout
+      connectionTimeoutMillis: 10000, // Reduced timeout
     })
   : mockPool;
 

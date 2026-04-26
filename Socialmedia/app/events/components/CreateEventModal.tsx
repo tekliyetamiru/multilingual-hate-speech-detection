@@ -43,15 +43,34 @@ export function CreateEventModal({ isOpen, onClose, onSuccess }: CreateEventModa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const payload = {
+        title: formData.title,
+        description: formData.description,
+        category: formData.category,
+        start_time: `${formData.date}T${formData.time}:00`,
+        end_time: formData.endTime ? `${formData.date}T${formData.endTime}:00` : null,
+        location: formData.isOnline ? null : formData.location,
+        is_online: formData.isOnline,
+        meeting_url: formData.meetingUrl,
+        max_attendees: formData.maxAttendees ? parseInt(formData.maxAttendees) : null,
+        tags: formData.tags,
+        cover_url: null, // we'll add image upload later if needed
+      };
+
+      // If you want to keep the file upload, we can integrate UploadThing, but for now skip.
+      const res = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
       toast.success('Event created successfully!');
       onSuccess();
       onClose();
-    } catch (error) {
-      toast.error('Failed to create event');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to create event');
     } finally {
       setIsLoading(false);
     }

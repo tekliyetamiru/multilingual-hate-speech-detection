@@ -34,7 +34,7 @@ export function EventCalendar({ events }: EventCalendarProps) {
   const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
 
   const getEventsForDate = (date: Date) => {
-    return events.filter(event => isSameDay(new Date(event.date), date));
+    return events.filter(event => isSameDay(new Date(event.start_date), date));
   };
 
   return (
