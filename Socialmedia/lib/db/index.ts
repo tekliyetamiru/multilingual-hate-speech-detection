@@ -1,3 +1,5 @@
+
+
 import { Pool } from '@neondatabase/serverless';
 
 // Check if we're in a browser environment

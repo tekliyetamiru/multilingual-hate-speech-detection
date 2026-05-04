@@ -771,6 +771,85 @@ export const messageQueries = {
     }
   },
 
+  // ⭐️ NEW - Add this function
+  // Works with your EXISTING messages table (no schema changes needed)
+  saveMessage: async ({
+    conversationId,
+    userId,
+    text,
+  }: {
+    conversationId: string;
+    userId: string;
+    text: string;
+  }) => {
+    // Generate ID and timestamp
+    const id = crypto.randomUUID();
+    const timestamp = new Date().toISOString();
+
+    // Insert into your EXISTING messages table
+    // Adjust column names to match YOUR actual table structure
+    const stmt = db.prepare(`
+      INSERT INTO messages (id, conversation_id, user_id, content, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(id, conversationId, userId, text, timestamp);
+
+    // Fetch the user info to return with message
+    const userStmt = db.prepare(`
+      SELECT id, name, email, image FROM users WHERE id = ?
+    `);
+    const user = userStmt.get(userId);
+
+    // Return the created message
+    return {
+      id,
+      conversationId,
+      userId,
+      content: text,
+      createdAt: timestamp,
+      user,
+    };
+  },
+
+  // ⭐️ NEW - Add this function
+  // Fetches messages from your EXISTING messages table
+  getConversationMessages: async (conversationId: string) => {
+    // Adjust column names to match YOUR actual table structure
+    const stmt = db.prepare(`
+      SELECT 
+        m.id,
+        m.conversation_id,
+        m.user_id,
+        m.content,
+        m.created_at,
+        u.id as user_id,
+        u.name as user_name,
+        u.email as user_email,
+        u.image as user_image
+      FROM messages m
+      INNER JOIN users u ON m.user_id = u.id
+      WHERE m.conversation_id = ?
+      ORDER BY m.created_at ASC
+    `);
+
+    const rows = stmt.all(conversationId);
+
+    // Format the results
+    return rows.map((row: any) => ({
+      id: row.id,
+      conversationId: row.conversation_id,
+      userId: row.user_id,
+      content: row.content,
+      createdAt: row.created_at,
+      user: {
+        id: row.user_id,
+        name: row.user_name,
+        email: row.user_email,
+        image: row.user_image,
+      },
+    }))},
+
   // Add participants to group
   async addParticipants(conversationId: string, userIds: string[], addedBy: string): Promise<boolean> {
     const client = await pool.connect();
