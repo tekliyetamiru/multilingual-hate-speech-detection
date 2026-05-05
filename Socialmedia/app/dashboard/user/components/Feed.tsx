@@ -20,67 +20,84 @@ export function Feed({ userId }: FeedProps) {
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { ref, inView } = useInView();
+  
+  // 👇 Use ref to prevent multiple simultaneous requests
+  const loadingRef = useRef(false);
 
   const loadPosts = useCallback(
     async (reset = false) => {
-      if (loading || (!hasMore && !reset)) return;
+      // Prevent duplicate requests
+      if (loadingRef.current) return;
+      if (!reset && !hasMore) return;
 
+      loadingRef.current = true;
       setLoading(true);
       setError(null);
+
       try {
         const currentPage = reset ? 1 : page;
-        const response = await fetch(
-          `/api/posts?limit=5&offset=${(currentPage - 1) * 5}`,
-        );
+        const offset = (currentPage - 1) * 5;
+        
+        console.log(`📡 Fetching posts: page=${currentPage}, offset=${offset}`);
+        
+        const response = await fetch(`/api/posts?limit=5&offset=${offset}`);
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ API Error:', response.status, errorText);
           throw new Error(`Failed to fetch posts: ${response.status}`);
         }
 
         const newPosts = await response.json();
+        console.log(`✅ Loaded ${newPosts.length} posts`);
 
         if (newPosts.length < 5) {
           setHasMore(false);
         }
 
         setPosts((prev) => (reset ? newPosts : [...prev, ...newPosts]));
-        setPage((prev) => (reset ? 2 : prev + 1));
+        if (!reset) {
+          setPage((prev) => prev + 1);
+        }
       } catch (error) {
-        console.error("Failed to load posts:", error);
-        setError("Failed to load posts. Please try again.");
+        console.error("❌ Failed to load posts:", error);
+        setError(error instanceof Error ? error.message : "Failed to load posts");
         toast.error("Failed to load posts");
       } finally {
         setLoading(false);
         setInitialLoading(false);
+        loadingRef.current = false;
       }
     },
-    [page, loading, hasMore],
+    [page, hasMore] // 👈 Remove loading from dependencies
   );
 
-  // Add new post to feed immediately
-  const handleNewPost = (newPost: any) => {
-    setPosts((prev) => [newPost, ...prev]);
-  };
-
+  // 👇 Load initial posts only once
   useEffect(() => {
     loadPosts(true);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 👇 Load more when scrolling
   useEffect(() => {
-    if (inView && !initialLoading && !error) {
+    if (inView && !initialLoading && !loading && hasMore && !error) {
       loadPosts();
     }
-  }, [inView, initialLoading, error, loadPosts]);
+  }, [inView]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePostUpdate = (updatedPost: any) => {
     setPosts((prev) =>
-      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
+      prev.map((p) => (p.id === updatedPost.id ? updatedPost : p))
     );
   };
 
   const handlePostDelete = (postId: string) => {
     setPosts((prev) => prev.filter((p) => p.id !== postId));
     toast.success("Post removed from feed");
+  };
+
+  // 👇 Add this function to handle new posts
+  const handleNewPost = (newPost: any) => {
+    setPosts((prev) => [newPost, ...prev]);
   };
 
   if (initialLoading) {
@@ -93,12 +110,18 @@ export function Feed({ userId }: FeedProps) {
     );
   }
 
-  if (error) {
+  if (error && posts.length === 0) {
     return (
       <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl">
         <h3 className="text-xl font-semibold mb-2">Something went wrong</h3>
         <p className="text-gray-500 mb-4">{error}</p>
-        <Button onClick={() => loadPosts(true)}>Try Again</Button>
+        <Button onClick={() => {
+          setPage(1);
+          setHasMore(true);
+          loadPosts(true);
+        }}>
+          Try Again
+        </Button>
       </div>
     );
   }

@@ -81,6 +81,20 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
     fetchComments();
   }, [fetchComments]);
 
+  // 🆕 SEPARATE silent refresh that doesn't show loading/error
+  const silentRefresh = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/posts/${postId}/comments?t=${Date.now()}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      setComments(data);
+      updateCommentCount(data);
+    } catch (err) {
+      console.error('Silent refresh failed:', err);
+      // Don't show error toast or set error state!
+    }
+  }, [postId, updateCommentCount]);
+
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -96,6 +110,7 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
 
     try {
       setSubmitting(true);
+
       const response = await fetch(`/api/posts/${postId}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,22 +120,51 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
         }),
       });
 
+      // Get response text
+      const responseText = await response.text();
+
+      // Check if HTTP error
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to post comment');
+        let errorMessage = 'Failed to post comment';
+        try {
+          const errorData = JSON.parse(responseText);
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          errorMessage = response.statusText || errorMessage;
+        }
+        toast.error(errorMessage);
+        return; // Exit without throwing
       }
 
-      const newCommentData = await response.json();
-      
-      // Refresh comments to get the latest from database
-      await fetchComments();
-      
+      // Parse successful response
+      let newCommentData;
+      try {
+        newCommentData = JSON.parse(responseText);
+      } catch {
+        toast.error('Invalid response from server');
+        return;
+      }
+
+      // Clear form immediately
       setNewComment('');
       setReplyTo(null);
-      toast.success('Comment posted successfully!');
-    } catch (error) {
-      console.error('Error posting comment:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to post comment');
+
+      // Add to UI immediately (optimistic)
+      if (newCommentData && newCommentData.id) {
+        setComments(prev => [newCommentData, ...prev]);
+        updateCommentCount([newCommentData, ...comments]);
+        toast.success('Comment posted successfully!');
+      }
+
+      // 🆕 Silent refresh after 1 second (don't use fetchComments!)
+      setTimeout(() => {
+        silentRefresh();
+      }, 1000);
+
+    } catch (error: any) {
+      // This catch only handles NETWORK errors (fetch failed completely)
+      console.error('Network error:', error);
+      toast.error('Network error. Please check your connection.');
     } finally {
       setSubmitting(false);
     }
@@ -143,8 +187,7 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
         throw new Error('Failed to edit comment');
       }
 
-      // Refresh comments to get the latest from database
-      await fetchComments();
+      await silentRefresh();
       setEditingComment(null);
       toast.success('Comment edited successfully!');
     } catch (error) {
@@ -167,8 +210,7 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
         throw new Error('Failed to delete comment');
       }
 
-      // Refresh comments to get the latest from database
-      await fetchComments();
+      await silentRefresh();
       toast.success('Comment deleted successfully!');
     } catch (error) {
       console.error('Error deleting comment:', error);
@@ -204,9 +246,7 @@ export default function CommentSection({ postId, onCommentCountChange }: Comment
           throw new Error('Failed to post reply');
         }
 
-        // Refresh comments to get the latest from database
-        await fetchComments();
-        
+        await silentRefresh();
         setReplyContent('');
         setShowReplyForm(false);
         toast.success('Reply posted successfully!');
