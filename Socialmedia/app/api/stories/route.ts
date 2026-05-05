@@ -38,7 +38,7 @@ export async function GET() {
 
     return NextResponse.json(result.rows);
   } catch (error) {
-    console.error('Error fetching stories:', error);
+      console.error("🔥 REAL ERROR in /api/stories:", error); 
     return NextResponse.json([], { status: 500 });
   }
 }

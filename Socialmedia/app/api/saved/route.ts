@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(result.rows);
   } catch (error) {
-    console.error('Error fetching saved posts:', error);
+     console.error("🔥 REAL ERROR in /api/saved:", error); 
     return NextResponse.json({ error: 'Failed to fetch saved posts' }, { status: 500 });
   }
 }
