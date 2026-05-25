@@ -46,12 +46,12 @@ def get_active_telegram_bots():
     finally:
         conn.close()
 
-def check_toxicity(text: str, api_key: str) -> dict | None:
+def check_toxicity(text: str, api_key: str, platform: str = 'telegram') -> dict | None:
     try:
         with httpx.Client(timeout=30.0) as client:
             r = client.post(
                 f"{API_URL}/api/detect",
-                json={"text": text},
+                json={"text": text, "platform": platform},  # ← ADD platform
                 headers={"X-API-Key": api_key, "Content-Type": "application/json"}
             )
             if r.status_code == 200:
@@ -61,7 +61,6 @@ def check_toxicity(text: str, api_key: str) -> dict | None:
     except Exception as e:
         logger.error(f"API call failed: {e}")
         return None
-
 
 async def run_bot(bot_config: dict):
     bot_id = bot_config['id']
