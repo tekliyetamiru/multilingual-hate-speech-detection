@@ -1,0 +1,11 @@
+services:
+  - type: worker
+    name: toxiguard-discord-worker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python worker.py
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: API_URL
+        value: https://tekliye-toxiguard.hf.space
