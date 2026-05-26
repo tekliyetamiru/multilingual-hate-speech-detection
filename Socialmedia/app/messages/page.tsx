@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -154,7 +154,7 @@ interface SearchResult {
 // MAIN MESSAGES PAGE COMPONENT
 // ==============================================
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -361,8 +361,7 @@ export default function MessagesPage() {
       toast.error('Failed to load messages');
     }
   };
-
-  const sendMessage = async () => {
+const sendMessage = async () => {
   const text = newMessage.trim();
   if (!text || !conversationId) return;
 
@@ -381,10 +380,13 @@ export default function MessagesPage() {
     const data = await response.json();
 
     if (!response.ok) {
-      // 🚫 HATE SPEECH DETECTED - Show warning, DON'T clear input
+      // 🚫 HATE SPEECH DETECTED - Show warning and CLEAR input
       toast.error(data.error || '⚠️ Your message contains inappropriate content');
       console.warn('Message blocked:', data.code, data.details);
-      return; // Keep the text in input so user can edit
+      
+      // ✅ Add this line to clear the input field when a message is blocked
+      setNewMessage(''); 
+      return; 
     }
 
     // ✅ MESSAGE SENT SUCCESSFULLY - Clear input
@@ -397,6 +399,7 @@ export default function MessagesPage() {
     setIsSending(false);
   }
 };
+
 
   const deleteMessage = async (messageId: string) => {
     try {
@@ -1657,3 +1660,12 @@ function GroupInfoModal({ isOpen, onClose, conversation, currentUserId, onLeaveG
     </Dialog>
   );
 }
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div></div>}>
+      <MessagesPageContent />
+    </Suspense>
+  );
+}
+
